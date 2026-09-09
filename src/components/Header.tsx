@@ -11,8 +11,10 @@ export default function Header() {
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/latest-jobs', label: 'Latest Jobs' },
-    { href: '/admit-cards', label: 'Admit Cards' },
-    { href: '/results', label: 'Results' },
+    { href: '/jobs/admit-cards', label: 'Admit Cards' },
+    { href: '/jobs/results', label: 'Results' },
+    { href: '/jobs/answer-keys', label: 'Answer Keys' },
+    { href: '/about-us', label: 'About Us' },
   ];
 
   return (
@@ -68,7 +70,7 @@ export default function Header() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-6">
+            <nav className="hidden md:flex space-x-6 bg-white">
               {navItems.map((item) => (
                 <Link
                   key={item.href}

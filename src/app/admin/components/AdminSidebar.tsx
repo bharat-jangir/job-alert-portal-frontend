@@ -66,6 +66,9 @@ export function AdminSidebar() {
             </Link>
           );
         })}
+        <li>
+          <a href="/admin/redirect-links" className="block py-2 px-4 hover:bg-gray-100">Redirect Links</a>
+        </li>
       </nav>
     </div>
   );

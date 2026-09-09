@@ -20,7 +20,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
 
   const fetchJob = async () => {
     try {
-      const { data } = await api.get(`/jobs/${jobId}`);
+      const { data } = await api.get(`/jobs/id/${jobId}`);
       console.log(job)
       setJob(data.data);
     } catch (error) {

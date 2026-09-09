@@ -7,6 +7,15 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { X } from 'lucide-react';
+import Editor from '@monaco-editor/react';
 
 // Define enums to match backend
 enum ExperienceLevel {
@@ -22,6 +31,20 @@ enum QualificationLevel {
   MASTERS = 'MASTERS',
   PHD = 'PHD',
   OTHER = 'OTHER'
+}
+
+export enum JobType {
+  RESULT = 'result',
+  ANSWERKEY = 'answer-key',
+  ADMISSION = 'admission',
+  ADMITCARD = 'admit-card',
+  ONLINEFORM = 'online-form',
+  UPDATE = 'update',
+  SYLLABUS = 'syllabus',
+  UPCOMING = 'upcoming',
+  VERIFICATION = 'verification',
+  SARKARIYOJANA = 'sarkari-yojana',
+  JOB = 'job',
 }
 
 interface ImportantDate {
@@ -50,6 +73,7 @@ interface JobFormData {
   metaTitle?: string;
   metaDescription?: string;
   sourceUrl?: string;
+  type: JobType;
 }
 
 interface JobFormProps {
@@ -67,6 +91,8 @@ const formatDateForInput = (dateString: string) => {
 export function JobForm({ job, onSuccess }: JobFormProps) {
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [htmlCode, setHtmlCode] = useState('');
   const router = useRouter();
 
   const [formData, setFormData] = useState<JobFormData>({
@@ -93,25 +119,28 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
     metaTitle: job?.metaTitle || '',
     metaDescription: job?.metaDescription || '',
     sourceUrl: job?.sourceUrl || '',
+    type: job?.type || JobType.RESULT,
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
 
+  useEffect(() => {
+    if (isEditorOpen) {
+      setHtmlCode(formData.htmlContent);
+    }
+  }, [isEditorOpen, formData.htmlContent]);
+
+  const handleEditorChange = (value: string | undefined) => {
+    if (value !== undefined) {
+      setHtmlCode(value);
+      handleChange('htmlContent', value);
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof JobFormData, string>> = {};
 
-    // Required fields
-    if (!formData.title) newErrors.title = 'Title is required';
-    if (!formData.slug) newErrors.slug = 'Slug is required';
-    if (!formData.htmlContent || formData.htmlContent.length < 100) newErrors.htmlContent = 'Content must be at least 100 characters';
-    if (!formData.organization) newErrors.organization = 'Organization is required';
-    if (!formData.location) newErrors.location = 'Location is required';
-    if (!formData.salary) newErrors.salary = 'Salary is required';
-    if (!formData.lastDate) newErrors.lastDate = 'Last date is required';
-    if (!formData.applyLink) newErrors.applyLink = 'Apply link is required';
-    if (!formData.description || formData.description.length < 100) newErrors.description = 'Description must be at least 100 characters';
-    if (!formData.eligibility || formData.eligibility.length < 50) newErrors.eligibility = 'Eligibility must be at least 50 characters';
-    if (!formData.totalVacancy) newErrors.totalVacancy = 'Total vacancy is required';
+    // No required or length validations
 
     // Format validations
     if (formData.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(formData.slug)) {
@@ -120,10 +149,6 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
 
     if (formData.salary && !/^[0-9]+(\.[0-9]+)?\s*[A-Z]{3}$/.test(formData.salary)) {
       newErrors.salary = 'Salary must be a number followed by currency code (e.g., "50000 USD")';
-    }
-
-    if (formData.lastDate && new Date(formData.lastDate) <= new Date()) {
-      newErrors.lastDate = 'Last date must be in the future';
     }
 
     if (formData.applyLink && !/^https?:\/\/.+/.test(formData.applyLink)) {
@@ -142,17 +167,7 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
       newErrors.sourceUrl = 'Must be a valid URL';
     }
 
-    // Validate important dates
-    formData.importantDates.forEach((date, index) => {
-      if (!date.label) {
-        newErrors[`importantDates.${index}.label` as keyof JobFormData] = 'Label is required';
-      }
-      if (!date.date) {
-        newErrors[`importantDates.${index}.date` as keyof JobFormData] = 'Date is required';
-      } else if (new Date(date.date) <= new Date()) {
-        newErrors[`importantDates.${index}.date` as keyof JobFormData] = 'Date must be in the future';
-      }
-    });
+    // Allow empty importantDates (no validation at all)
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -200,15 +215,19 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
     try {
       const formattedData = {
         ...formData,
-        lastDate: new Date(formData.lastDate).toISOString(),
+        lastDate: formData.lastDate && !isNaN(new Date(formData.lastDate).getTime())
+          ? new Date(formData.lastDate).toISOString()
+          : '',
         importantDates: formData.importantDates.map(date => ({
           ...date,
-          date: new Date(date.date).toISOString()
+          date: date.date && !isNaN(new Date(date.date).getTime())
+            ? new Date(date.date).toISOString()
+            : ''
         }))
       };
 
       if (job) {
-        await api.patch(`/jobs/${job._id}`, formattedData);
+        await api.patch(`/jobs/id/${job._id}`, formattedData);
         toast.success('Job updated successfully');
       } else {
         await api.post('/jobs', formattedData);
@@ -359,13 +378,62 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
 
       <div>
         <label className="block text-sm font-medium mb-2">HTML Content</label>
-        <Textarea
-          value={formData.htmlContent}
-          onChange={(e) => handleChange('htmlContent', e.target.value)}
-          placeholder="Enter HTML content for the job posting"
-          className="min-h-[200px] font-mono"
-        />
-        {errors.htmlContent && <p className="text-red-500 text-sm mt-1">{errors.htmlContent}</p>}
+        <div className="space-y-2">
+          <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" className="w-full">
+                Open HTML Editor
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-full w-full h-screen p-0 gap-0">
+              <DialogHeader className="p-4 border-b flex flex-row items-center justify-between">
+                <DialogTitle>HTML Editor</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsEditorOpen(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogHeader>
+              <div className="grid grid-cols-2 h-[calc(100vh-4rem)]">
+                <div className="h-full border-r">
+                  <Editor
+                    height="100%"
+                    defaultLanguage="html"
+                    value={htmlCode}
+                    onChange={handleEditorChange}
+                    theme="vs-dark"
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      wordWrap: 'on',
+                      lineNumbers: 'on',
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true,
+                    }}
+                  />
+                </div>
+                <div className="h-full">
+                  <iframe
+                    srcDoc={htmlCode}
+                    title="preview"
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts"
+                  />
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Textarea
+            value={formData.htmlContent}
+            onChange={(e) => handleChange('htmlContent', e.target.value)}
+            placeholder="Enter HTML content for the job posting"
+            className="min-h-[200px] font-mono"
+          />
+          {errors.htmlContent && <p className="text-red-500 text-sm mt-1">{errors.htmlContent}</p>}
+        </div>
       </div>
 
       <div>
@@ -505,6 +573,21 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
           disabled={true}
           checked={true}
         />
+      </div>
+
+      <div className="mb-4">
+        <label className="block mb-1 font-medium">Job Type</label>
+        <select
+          className="border rounded px-2 py-1 w-full"
+          value={formData.type}
+          onChange={e => handleChange('type', e.target.value as JobType)}
+          required
+        >
+          {Object.entries(JobType).map(([key, value]) => (
+            <option key={key} value={value}>{value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+          ))}
+        </select>
+        {errors.type && <div className="text-red-500 text-sm">{errors.type}</div>}
       </div>
 
       <div className="flex justify-end space-x-4">

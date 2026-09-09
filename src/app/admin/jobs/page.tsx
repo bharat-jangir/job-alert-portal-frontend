@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
+import { useDebounce } from '@/hooks/useDebounce';
+import { Search, Loader2 } from 'lucide-react';
 
 interface Job {
   _id: string;
@@ -39,20 +41,25 @@ export default function JobsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
   const itemsPerPage = 10;
+
+  // Create a debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     fetchJobs();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, debouncedSearchTerm]);
 
   const fetchJobs = async () => {
     try {
       setIsLoading(true);
+      setIsSearching(true);
       const { data } = await api.get<JobsResponse>('/jobs', {
         params: {
           page: currentPage,
           limit: itemsPerPage,
-          search: searchTerm || undefined
+          search: debouncedSearchTerm || undefined
         }
       });
       setJobs(data.data.jobs);
@@ -63,6 +70,7 @@ export default function JobsPage() {
       toast.error('Failed to load jobs');
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
@@ -70,7 +78,7 @@ export default function JobsPage() {
     if (!confirm('Are you sure you want to delete this job?')) return;
 
     try {
-      await api.delete(`/jobs/${id}`);
+      await api.delete(`/jobs/id/${id}`);
       toast.success('Job deleted successfully');
       fetchJobs();
     } catch (error) {
@@ -169,14 +177,25 @@ export default function JobsPage() {
         </Link>
       </div>
 
-      <div className="mb-4">
-        <Input
-          type="search"
-          placeholder="Search jobs..."
-          value={searchTerm}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="mb-4 relative">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            type="search"
+            placeholder="Search jobs by title, organization, or location..."
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-10"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 animate-spin" />
+          )}
+        </div>
+        {debouncedSearchTerm && (
+          <div className="mt-2 text-sm text-gray-500">
+            Showing results for: <span className="font-medium">{debouncedSearchTerm}</span>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -195,19 +214,28 @@ export default function JobsPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-4">
-                  Loading...
+                  <div className="flex items-center justify-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : jobs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-4">
-                  No jobs found
+                  {debouncedSearchTerm ? (
+                    <div className="text-gray-500">
+                      No jobs found matching "{debouncedSearchTerm}"
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">No jobs found</div>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
               jobs.map((job) => (
                 <TableRow key={job._id}>
-                  <TableCell>{job.title}</TableCell>
+                  <TableCell className="font-medium">{job.title}</TableCell>
                   <TableCell>{job.organization}</TableCell>
                   <TableCell>{job.location}</TableCell>
                   <TableCell>{new Date(job.lastDate).toLocaleDateString()}</TableCell>
