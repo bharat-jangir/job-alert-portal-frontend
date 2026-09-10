@@ -1,9 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
-import api from '@/lib/axios';
 import { Metadata } from 'next';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import Link from 'next/link';
 
 interface Job {
   _id: string;
@@ -41,8 +38,10 @@ interface JobMetadata {
 
 async function getJobMetadata(slug: string): Promise<JobMetadata | null> {
   try {
-    const { data } = await api.get<{ data: Job }>(`/jobs/${slug}`);
-    const job = data.data;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const { data: job } = await res.json();
     return {
       title: job.title,
       metaTitle: job.metaTitle,
@@ -50,25 +49,26 @@ async function getJobMetadata(slug: string): Promise<JobMetadata | null> {
       organization: job.organization,
       qualification: job.qualification,
     };
-  } catch (error) {
-    console.error('Error fetching job metadata:', error);
+  } catch {
     return null;
   }
 }
 
 async function getJob(slug: string) {
   try {
-    const { data } = await api.get<{ data: Job }>(`/jobs/${slug}`);
-    return data.data;
-  } catch (error) {
-    console.error('Error fetching job:', error);
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return data;
+  } catch {
     return null;
   }
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const metadata = await getJobMetadata(params.slug);
-  
+
   if (!metadata) {
     return {
       title: 'Job Not Found',
@@ -96,11 +96,35 @@ export default async function JobPage({ params }: { params: { slug: string } }) 
     notFound();
   }
 
+  // JSON-LD Structured Data for Google Rich Results
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: job.description || job.title,
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: job.organization || 'Government of India',
+    },
+    jobLocation: {
+      '@type': 'Place',
+      address: { '@type': 'PostalAddress', addressLocality: job.location || 'India', addressCountry: 'IN' },
+    },
+    baseSalary: job.salary ? {
+      '@type': 'MonetaryAmount',
+      currency: 'INR',
+      value: { '@type': 'QuantitativeValue', value: job.salary, unitText: 'YEAR' },
+    } : undefined,
+    validThrough: job.lastDate,
+    datePosted: new Date().toISOString(),
+    employmentType: 'FULL_TIME',
+    educationRequirements: job.qualification,
+  };
+
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <Header />
-      
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
       {/* Main Content */}
       <main className="flex-1 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -196,7 +220,7 @@ export default async function JobPage({ params }: { params: { slug: string } }) 
               {/* Job Description */}
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 className="text-xl font-semibold mb-4">Job Description</h2>
-                <div 
+                <div
                   className="prose max-w-none job-content"
                   dangerouslySetInnerHTML={{ __html: job.htmlContent }}
                 />
@@ -219,11 +243,11 @@ export default async function JobPage({ params }: { params: { slug: string } }) 
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h3 className="text-lg font-semibold mb-4">Important Dates</h3>
                     <div className="space-y-3">
-                      {job.importantDates.map((date, index) => (
+                      {job.importantDates.map((date: string, index: number) => (
                         <div key={index} className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm">{date.label}</span>
+                          <span className="text-gray-600 text-sm">{date}</span>
                           <span className="font-medium text-sm">
-                            {new Date(date.date).toLocaleDateString()}
+                            {new Date(date).toLocaleDateString()}
                           </span>
                         </div>
                       ))}
@@ -261,7 +285,7 @@ export default async function JobPage({ params }: { params: { slug: string } }) 
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h3 className="text-lg font-semibold mb-4">Tags</h3>
                     <div className="flex flex-wrap gap-2">
-                      {job.tags.map((tag, index) => (
+                      {job.tags.map((tag: string, index: number) => (
                         <span
                           key={index}
                           className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
@@ -295,7 +319,6 @@ export default async function JobPage({ params }: { params: { slug: string } }) 
       </main>
 
       {/* Footer */}
-      <Footer />
-    </div>
+    </>
   );
-} 
+}

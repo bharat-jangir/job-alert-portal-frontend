@@ -9,34 +9,20 @@ import {
   Users,
   Settings,
   LayoutDashboard,
+  HelpCircle,
+  Link2,
+  Mail,
 } from 'lucide-react';
 
 const sidebarItems = [
-  {
-    title: 'Dashboard',
-    href: '/admin',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Jobs',
-    href: '/admin/jobs',
-    icon: Briefcase,
-  },
-  {
-    title: 'Results',
-    href: '/admin/results',
-    icon: FileText,
-  },
-  {
-    title: 'Users',
-    href: '/admin/users',
-    icon: Users,
-  },
-  {
-    title: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
-  },
+  { title: 'Dashboard',       href: '/admin',                icon: LayoutDashboard },
+  { title: 'Jobs',             href: '/admin/jobs',           icon: Briefcase },
+  { title: 'Results',          href: '/admin/results',        icon: FileText },
+  { title: 'Redirect Links',   href: '/admin/redirect-links', icon: Link2 },
+  { title: 'FAQ',              href: '/admin/faqs',           icon: HelpCircle },
+  { title: 'Queries',          href: '/admin/queries',        icon: Mail },
+  { title: 'Users',            href: '/admin/users',          icon: Users },
+  { title: 'Settings',         href: '/admin/settings',       icon: Settings },
 ];
 
 export function AdminSidebar() {
@@ -47,9 +33,10 @@ export function AdminSidebar() {
       <div className="mb-8">
         <h1 className="text-xl font-bold">Admin Panel</h1>
       </div>
-      <nav className="space-y-2">
+      <nav className="space-y-1">
         {sidebarItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isDashboard = item.href === '/admin';
+          const isActive = pathname === item.href || (!isDashboard && pathname.startsWith(item.href + '/'));
           return (
             <Link
               key={item.href}
@@ -57,7 +44,7 @@ export function AdminSidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                 isActive
-                  ? 'bg-gray-800 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               )}
             >
@@ -66,9 +53,6 @@ export function AdminSidebar() {
             </Link>
           );
         })}
-        <li>
-          <a href="/admin/redirect-links" className="block py-2 px-4 hover:bg-gray-100">Redirect Links</a>
-        </li>
       </nav>
     </div>
   );

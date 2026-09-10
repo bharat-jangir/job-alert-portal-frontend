@@ -109,13 +109,9 @@ async function getAllJobs(): Promise<Job[]> {
     });
     if (!response.ok) throw new Error('Failed to fetch jobs');
     const result = await response.json();
-    // Debug log
-    console.log('API result:', result);
-    if (Array.isArray(result.data)) {
-      return result.data;
-    }
-    // If result.data is not an array, return an empty array
-    return [];
+    // Backend returns { jobs: [], total: N } at top level (no global interceptor)
+    const payload = result.data ?? result;
+    return payload.jobs || payload || [];
   } catch (error) {
     console.error('Error fetching all jobs:', error);
     return [];
@@ -154,6 +150,7 @@ async function getCategories(): Promise<string[]> {
     });
     if (!response.ok) return [];
     const result = await response.json();
+    // Backend now returns { data: { categories: [] } }
     return result.data?.categories || [];
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -183,6 +180,22 @@ const renderLink = (link: any, className: string) => {
   );
 };
 
+async function getFaqs() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${baseUrl}/api/faqs/public`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const result = await res.json();
+    const payload = result.data ?? result;
+    return Array.isArray(payload) ? payload.slice(0, 5) : [];
+  } catch (error) {
+    console.error('Error fetching FAQs:', error);
+    return [];
+  }
+}
+
 export default async function Home() {
   // Fetch latest jobs on the server
   const latestJobs = await getLatestJobs();
@@ -193,12 +206,10 @@ export default async function Home() {
   const naukriFormLinks = await getRedirectLinks('ONLINEFORM');
   const admissionLinks = await getRedirectLinks('ADMISSION');
   const categories = await getCategories();
+  const faqs = await getFaqs();
 
   return (
     <>
-      {/* Simple Header */}
-     
-
       {/* Main Content */}
       <div className="bg-gray-100 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -466,27 +477,25 @@ export default async function Home() {
                 </div>
 
                 {/* FAQ */}
-                <div className="bg-white p-3 rounded border">
-                  <h3 className="font-semibold text-gray-800 mb-2 border-b pb-1">FAQ</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 text-sm mb-1">What is Rojgar Result?</h4>
-                      <p className="text-xs text-gray-600">
-                        Go to Google and type Rojgar Result then click on the website RojgarResult.Com and get all the latest updates.
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800 text-sm mb-1">Is the Rojgar Result Updated Daily?</h4>
-                      <p className="text-xs text-gray-600">
-                        Rojgar Results 24×7 Updated webpage to provide information about the latest notification of the Government Exams.
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800 text-sm mb-1">Is Rojgar Result a Government Website?</h4>
-                      <p className="text-xs text-gray-600">
-                        Rojgar Result is not a government website, it only gives information about government jobs.
-                      </p>
-                    </div>
+                <div className="bg-white p-3 rounded border shadow-sm">
+                  <h3 className="font-semibold text-gray-800 mb-3 border-b pb-1 text-sm uppercase tracking-wide">FAQ</h3>
+                  <div className="space-y-4">
+                    {faqs.length > 0 ? (
+                      faqs.map((faq: any) => (
+                        <div key={faq._id}>
+                          <h4 className="font-semibold text-gray-800 text-sm mb-1 line-clamp-2">{faq.question}</h4>
+                          <div className="text-xs text-gray-600 line-clamp-3" dangerouslySetInnerHTML={{ __html: faq.answer }} />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">No FAQs available.</div>
+                    )}
+                  </div>
+                  <div className="mt-4 text-center">
+                    <Link href="/faq" className="text-blue-600 text-xs font-semibold hover:underline flex items-center justify-center gap-1">
+                      VIEW ALL FAQS
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -495,8 +504,6 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* Simple Footer */}
-     
     </>
   );
 }

@@ -1,7 +1,14 @@
+// /jobs/admit-cards/page.tsx – SSR page using native fetch
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-import api from '@/lib/axios';
 import Link from 'next/link';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Admit Cards 2025 – Download Hall Ticket | Job Alert',
+  description: 'Download latest admit cards and hall tickets for all government exams. RRB, SSC, UPSC, Police and more.',
+  robots: { index: true, follow: true },
+};
 
 interface Job {
   _id: string;
@@ -9,12 +16,16 @@ interface Job {
   title: string;
 }
 
-async function getAdmitCards() {
+async function getAdmitCards(): Promise<Job[]> {
   try {
-    const { data } = await api.get('/jobs/by-type/admit-card');
-    return data.data || [];
-  } catch (error) {
-    console.error('Error fetching admit cards:', error);
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${baseUrl}/api/jobs/by-type/admit-card`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const result = await res.json();
+    return result.data || [];
+  } catch {
     return [];
   }
 }
@@ -22,23 +33,24 @@ async function getAdmitCards() {
 function JobsList({ jobs }: { jobs: Job[] }) {
   if (jobs.length === 0) {
     return (
-      <div className="text-center py-12">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Admit Cards Found</h3>
-        <p className="text-gray-600">No admit cards available at the moment. Please check back later.</p>
+      <div className="text-center py-16">
+        <div className="text-5xl mb-4">📋</div>
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">No Admit Cards Found</h3>
+        <p className="text-gray-500">No admit cards available at the moment. Please check back later.</p>
       </div>
     );
   }
   return (
-    <div className="space-y-4">
+    <div className="divide-y divide-gray-100">
       {jobs.map((job) => (
         <Link
           key={job._id}
           href={`/jobs/${job.slug}`}
-          className="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors group"
         >
-          <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{job.title}</h2>
-          </div>
+          <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 group-hover:bg-blue-700" />
+          <span className="text-blue-700 text-sm font-medium group-hover:underline leading-snug">{job.title}</span>
+          <span className="ml-auto text-xs text-white bg-blue-500 px-2 py-0.5 rounded-full flex-shrink-0">New</span>
         </Link>
       ))}
     </div>
@@ -48,16 +60,19 @@ function JobsList({ jobs }: { jobs: Job[] }) {
 export default async function AdmitCardsPage() {
   const jobs = await getAdmitCards();
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Admit Cards</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">Browse all available admit cards.</p>
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Admit Cards 2025</h1>
+        <p className="text-gray-500 text-sm">Download hall tickets for all upcoming government exams</p>
+      </div>
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-blue-600 px-4 py-3">
+          <h2 className="text-white font-semibold text-sm uppercase tracking-wide">Latest Admit Cards</h2>
         </div>
-        <Suspense fallback={<div className="flex justify-center items-center py-12"><Loader2 className="h-6 w-6 animate-spin" /><span>Loading admit cards...</span></div>}>
+        <Suspense fallback={<div className="flex justify-center items-center py-12 gap-2"><Loader2 className="h-5 w-5 animate-spin text-blue-600" /><span className="text-gray-500">Loading...</span></div>}>
           <JobsList jobs={jobs} />
         </Suspense>
       </div>
     </div>
   );
-} 
+}

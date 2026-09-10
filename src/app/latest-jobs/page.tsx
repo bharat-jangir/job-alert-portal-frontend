@@ -1,75 +1,110 @@
+// /latest-jobs/page.tsx – content only, chrome comes from latest-jobs/layout.tsx
 import Link from 'next/link';
+import { Metadata } from 'next';
+import { Calendar, Building2, MapPin } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'Latest Government Jobs 2025 – Sarkari Naukri | Job Alert',
+  description: 'Find all latest government jobs notifications 2025. SSC, UPSC, Railway, Banking, Police and state government jobs.',
+  robots: { index: true, follow: true },
+};
 
 interface Job {
-  id?: number;
   _id?: string;
   title: string;
   slug: string;
-  category?: string;
-  postedDate?: string;
   lastDate: string;
-  location?: string;
   organization?: string;
+  location?: string;
   salary?: string;
+  publishedAt?: string;
 }
 
 async function getAllJobs(): Promise<Job[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
-    let response = await fetch(`${baseUrl}/api/jobs`, {
-      next: { revalidate: 3600 }
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${baseUrl}/api/jobs/latest?limit=50`, {
+      next: { revalidate: 600 },
     });
-    if (!response.ok) throw new Error('Failed to fetch jobs');
-    const result = await response.json();
-    // Handle both possible response formats
-    if (Array.isArray(result.data)) {
-      return result.data;
-    }
-    if (result.data && Array.isArray(result.data.jobs)) {
-      return result.data.jobs;
-    }
-    return [];
-  } catch (error) {
-    console.error('Error fetching all jobs:', error);
+    if (!res.ok) throw new Error('Failed to fetch jobs');
+    const result = await res.json();
+    const payload = result.data ?? result;
+    return Array.isArray(payload) ? payload : payload.jobs || [];
+  } catch {
     return [];
   }
 }
 
 export default async function LatestJobsPage() {
-  let jobs = await getAllJobs();
-  if (!Array.isArray(jobs)) jobs = [];
+  const jobs = await getAllJobs();
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl font-bold text-blue-700 mb-6 border-b pb-2">All Jobs</h1>
-      <div className="bg-white rounded border divide-y">
-        {jobs.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No jobs found.</div>
-        )}
-        {Array.isArray(jobs) && jobs.map((job) => (
-          <div key={job._id || job.id} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between hover:bg-blue-50 transition">
-            <div>
-              <Link href={`/jobs/${job.slug}`} className="text-blue-700 font-semibold hover:underline text-base md:text-lg">
-                {job.title}
-              </Link>
-              <div className="text-xs text-gray-500 mt-1 space-x-2">
-                {job.postedDate && <span>📅 Posted: {new Date(job.postedDate).toLocaleDateString()}</span>}
-                {job.lastDate && <span>⏰ Last Date: {new Date(job.lastDate).toLocaleDateString()}</span>}
-                {job.organization && <span>🏢 {job.organization}</span>}
-                {job.location && <span>📍 {job.location}</span>}
-                {job.category && <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium ml-2">{job.category}</span>}
-              </div>
-            </div>
-            <div className="mt-2 md:mt-0">
-              <Link href={`/jobs/${job.slug}`} className="inline-block bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700 text-sm font-medium shadow">
-                View Details
-              </Link>
-            </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Latest Government Jobs 2025</h1>
+        <p className="text-gray-500 text-sm">All new Sarkari Naukri notifications updated daily</p>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-blue-700 px-4 py-3">
+          <h2 className="text-white font-semibold text-sm uppercase tracking-wide">
+            Latest Jobs ({jobs.length})
+          </h2>
+        </div>
+
+        {jobs.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-5xl mb-4">💼</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Jobs Found</h3>
+            <p className="text-gray-500">Please check back later.</p>
           </div>
-        ))}
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {jobs.map((job) => (
+              <Link
+                key={job._id || job.slug}
+                href={`/jobs/${job.slug}`}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-blue-50 transition-colors group"
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5 group-hover:bg-blue-700" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-blue-700 text-sm font-medium group-hover:underline leading-snug block">
+                    {job.title}
+                  </span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {job.organization && (
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                        <Building2 className="h-3 w-3" />{job.organization}
+                      </span>
+                    )}
+                    {job.location && (
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                        <MapPin className="h-3 w-3" />{job.location}
+                      </span>
+                    )}
+                    {job.lastDate && (
+                      <span className="text-xs text-red-400 flex items-center gap-0.5">
+                        <Calendar className="h-3 w-3" />
+                        Last: {new Date(job.lastDate).toLocaleDateString('en-IN')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs text-white bg-blue-500 px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">New</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link
+          href="/jobs"
+          className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition text-sm"
+        >
+          View All Jobs with Filters →
+        </Link>
       </div>
     </div>
   );
-} 
+}
