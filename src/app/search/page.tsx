@@ -22,7 +22,7 @@ interface Job {
 }
 
 interface SearchPageProps {
-  searchParams: { q?: string; page?: string };
+  searchParams: Promise<{ q?: string; page?: string }>;
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; label: string }> = {
@@ -77,7 +77,8 @@ async function fetchJobs(params: URLSearchParams): Promise<{ jobs: Job[]; total:
 }
 
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
-  const q = (searchParams.q || '').trim();
+  const resolvedParams = await searchParams;
+  const q = (resolvedParams.q || '').trim();
   return {
     title: q ? `Search: "${q}" – Government Jobs` : 'Browse All Government Jobs 2025',
     description: q
@@ -218,8 +219,9 @@ function Pagination({
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const q = (searchParams.q || '').trim();
-  const currentPage = Math.max(1, Number(searchParams.page) || 1);
+  const resolvedParams = await searchParams;
+  const q = (resolvedParams.q || '').trim();
+  const currentPage = Math.max(1, Number(resolvedParams.page) || 1);
 
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(currentPage) });
   if (q) params.set('search', q);

@@ -57,6 +57,7 @@ interface JobFormData {
   slug: string;
   htmlContent: string;
   organization: string;
+  organizationId?: string;
   location: string;
   salary: string;
   qualification: QualificationLevel;
@@ -67,6 +68,7 @@ interface JobFormData {
   eligibility: string;
   totalVacancy: string;
   ageLimit?: string;
+  isBulletin: boolean;
   // isActive: boolean;
   tags: string[];
   importantDates: ImportantDate[];
@@ -93,13 +95,28 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [htmlCode, setHtmlCode] = useState('');
+  const [organizations, setOrganizations] = useState<{_id: string, name: string}[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const res = await api.get('/organizations/active');
+        const data = res.data?.data ?? res.data;
+        setOrganizations(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to load organizations', err);
+      }
+    };
+    fetchOrgs();
+  }, []);
 
   const [formData, setFormData] = useState<JobFormData>({
     title: job?.title || '',
     slug: job?.slug || '',
     htmlContent: job?.htmlContent || '',
     organization: job?.organization || '',
+    organizationId: typeof job?.organizationId === 'object' ? job?.organizationId?._id : (job?.organizationId || ''),
     location: job?.location || '',
     salary: job?.salary || '',
     qualification: job?.qualification || QualificationLevel.BACHELORS,
@@ -110,6 +127,7 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
     eligibility: job?.eligibility || '',
     totalVacancy: job?.totalVacancy || '',
     ageLimit: job?.ageLimit || '',
+    isBulletin: job?.isBulletin ?? false,
     // isActive: job?.isActive ?? true,
     tags: job?.tags || [],
     importantDates: job?.importantDates?.map((date: any) => ({
@@ -293,11 +311,23 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium mb-2">Organization</label>
-          <Input
-            value={formData.organization}
-            onChange={(e) => handleChange('organization', e.target.value)}
-            placeholder="Enter organization name"
-          />
+          <select
+            className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.organizationId}
+            onChange={(e) => {
+              const selectedOrg = organizations.find(o => o._id === e.target.value);
+              setFormData(prev => ({
+                ...prev,
+                organizationId: e.target.value,
+                organization: selectedOrg ? selectedOrg.name : ''
+              }));
+            }}
+          >
+            <option value="">Select an organization</option>
+            {organizations.map(org => (
+              <option key={org._id} value={org._id}>{org.name}</option>
+            ))}
+          </select>
           {errors.organization && <p className="text-red-500 text-sm mt-1">{errors.organization}</p>}
         </div>
 
@@ -568,10 +598,21 @@ export function JobForm({ job, onSuccess }: JobFormProps) {
           </div>
         </div>
         <Switch
-          // checked={formData.isActive}
-          // onCheckedChange={(checked) => handleChange('isActive', checked)}
           disabled={true}
           checked={true}
+        />
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <label className="text-base font-medium">Show in Bulletin</label>
+          <div className="text-sm text-muted-foreground">
+            Feature this job on the homepage's Latest Bulletin & Announcements section
+          </div>
+        </div>
+        <Switch
+          checked={formData.isBulletin}
+          onCheckedChange={(checked) => handleChange('isBulletin', checked)}
         />
       </div>
 

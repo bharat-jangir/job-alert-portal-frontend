@@ -29,10 +29,10 @@ interface JobsData {
 }
 
 interface JobsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     page?: string;
     search?: string;
-  };
+  }>;
 }
 
 async function getJobs(page: number = 1, search?: string): Promise<JobsData> {
@@ -160,8 +160,9 @@ function Pagination({ currentPage, totalPages, search }: { currentPage: number; 
 }
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
-  const currentPage = Number(searchParams.page) || 1;
-  const search = searchParams.search || '';
+  const resolvedParams = await searchParams;
+  const currentPage = Number(resolvedParams.page) || 1;
+  const search = resolvedParams.search || '';
   const { jobs, total } = await getJobs(currentPage, search);
   const totalPages = Math.ceil(total / 10);
   const from = ((currentPage - 1) * 10) + 1;

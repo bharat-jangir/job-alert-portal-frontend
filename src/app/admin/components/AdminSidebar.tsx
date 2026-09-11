@@ -12,11 +12,15 @@ import {
   HelpCircle,
   Link2,
   Mail,
+  Building2,
+  Megaphone,
 } from 'lucide-react';
 
 const sidebarItems = [
   { title: 'Dashboard',       href: '/admin',                icon: LayoutDashboard },
   { title: 'Jobs',             href: '/admin/jobs',           icon: Briefcase },
+  { title: 'Bulletins',        href: '/admin/bulletins',      icon: Megaphone },
+  { title: 'Organizations',    href: '/admin/organizations',  icon: Building2 },
   { title: 'Results',          href: '/admin/results',        icon: FileText },
   { title: 'Redirect Links',   href: '/admin/redirect-links', icon: Link2 },
   { title: 'FAQ',              href: '/admin/faqs',           icon: HelpCircle },

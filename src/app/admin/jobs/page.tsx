@@ -15,7 +15,7 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Megaphone } from 'lucide-react';
 
 interface Job {
   _id: string;
@@ -24,6 +24,7 @@ interface Job {
   location: string;
   lastDate: string;
   isActive: boolean;
+  isBulletin: boolean;
   createdAt: string;
 }
 
@@ -83,6 +84,16 @@ export default function JobsPage() {
       fetchJobs();
     } catch (error) {
       toast.error('Failed to delete job');
+    }
+  };
+
+  const handleToggleBulletin = async (id: string) => {
+    try {
+      await api.patch(`/jobs/bulletins/${id}/toggle`);
+      setJobs(jobs.map(j => j._id === id ? { ...j, isBulletin: !j.isBulletin } : j));
+      toast.success('Bulletin status updated');
+    } catch (error) {
+      toast.error('Failed to update bulletin status');
     }
   };
 
@@ -247,7 +258,16 @@ export default function JobsPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 items-center">
+                      <Button
+                        variant={job.isBulletin ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleToggleBulletin(job._id)}
+                        className={job.isBulletin ? "bg-orange-500 hover:bg-orange-600 text-white border-transparent" : "text-gray-500"}
+                        title={job.isBulletin ? "Remove from Bulletin" : "Add to Bulletin"}
+                      >
+                        <Megaphone className="h-4 w-4" />
+                      </Button>
                       <Link href={`/admin/jobs/${job._id}/edit`}>
                         <Button variant="outline" size="sm">Edit</Button>
                       </Link>
