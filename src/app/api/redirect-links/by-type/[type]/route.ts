@@ -1,6 +1,6 @@
 // Placeholder for filtering redirect links by type
-export async function GET(req: Request, { params }: { params: { type: string } }) {
-  const { type } = params;
+export async function GET(req: Request, { params }: { params: Promise<{ type: string }> }) {
+  const { type } = await params;
   const now = new Date().toISOString();
   // Example filtered data
   const data = [
