@@ -110,12 +110,31 @@ async function getJobsByType(type: string): Promise<any[]> {
 
     if (!response.ok) return [];
     const result = await response.json();
-    // Assuming backend returns an array of { title, slug } for /api/jobs/by-type/:type
-    return Array.isArray(result) ? result.slice(0, 10) : [];
+    const data = result.data ?? result;
+    return Array.isArray(data) ? data.slice(0, 10) : [];
   } catch (error) {
     console.error(`Error fetching jobs for type ${type}:`, error);
     return [];
   }
+}
+
+async function getActiveCategories(): Promise<any[]> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const response = await fetch(`${baseUrl}/api/job-categories/active`, {
+      next: { revalidate: 3600 }
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return result.data ?? result;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+function slugToRedirectType(slug: string): string {
+  return slug.replace(/-/g, '').toUpperCase();
 }
 
 async function getOrganizations(): Promise<{ _id: string, name: string, slug: string }[]> {
@@ -166,10 +185,21 @@ async function getBulletins(): Promise<any[]> {
 }
 
 const renderLink = (link: any, className: string) => {
+  const content = (
+    <>
+      <span className="align-middle">{link.title}</span>
+      {link.tag && (
+        <span className="inline-flex bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded ml-1.5 uppercase leading-none border border-red-200 align-middle -mt-0.5">
+          {link.tag}
+        </span>
+      )}
+    </>
+  );
+
   if (link.redirectType === 'external') {
     return (
       <a href={link.externalUrl} target="_blank" rel="noopener noreferrer" className={className}>
-        {link.title}
+        {content}
       </a>
     );
   }
@@ -177,25 +207,28 @@ const renderLink = (link: any, className: string) => {
   const href = link.slug?.startsWith('/') ? link.slug : `/jobs/${link.slug}`;
   return (
     <Link href={href} className={className}>
-      {link.title}
+      {content}
     </Link>
   );
 };
 
 export default async function Home() {
-  const latestJobs = await getLatestJobs();
   const popularJobs = await getPopularJobs();
   
-  const resultLinks = await getRedirectLinks('RESULT');
-  const resultJobs = await getJobsByType('result');
-  const combinedResults = [...resultJobs, ...resultLinks].slice(0, 10);
+  const allCategories = await getActiveCategories();
+  const homeCategories = allCategories
+    .filter((c: any) => c.showOnHome && !c.isDeleted)
+    .sort((a: any, b: any) => a.sequenceNo - b.sequenceNo);
+
+  const categoryData = await Promise.all(
+    homeCategories.map(async (category: any) => {
+      const jobs = await getJobsByType(category.slug);
+      const redirectLinks = await getRedirectLinks(slugToRedirectType(category.slug));
+      const combined = [...jobs, ...redirectLinks].slice(0, 10);
+      return { ...category, items: combined };
+    })
+  );
   
-  const admitCardLinks = await getRedirectLinks('ADMITCARD');
-  const admitCardJobs = await getJobsByType('admit-card');
-  const combinedAdmitCards = [...admitCardJobs, ...admitCardLinks].slice(0, 10);
-  
-  const naukriFormLinks = await getRedirectLinks('ONLINEFORM');
-  const admissionLinks = await getRedirectLinks('ADMISSION');
   const organizations = await getOrganizations();
   const faqs = await getFaqs();
   const bulletins = await getBulletins();
@@ -342,97 +375,68 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ================= SECTION 3: 3-COLUMN MAIN CONTENT LAYOUT ================= */}
+        {/* ================= SECTION 3: DYNAMIC GRID LAYOUT ================= */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {categoryData.map((category, idx) => {
+            const colors = [
+              'bg-green-600',
+              'bg-blue-600',
+              'bg-red-600',
+              'bg-purple-600',
+              'bg-orange-600',
+            ];
+            const textColors = [
+              'text-green-700',
+              'text-blue-700',
+              'text-red-700',
+              'text-purple-700',
+              'text-orange-700',
+            ];
+            const colorClass = colors[idx % colors.length];
+            const textClass = textColors[idx % textColors.length];
 
-          {/* COLUMN 1: RESULTS */}
-          <div className="bg-white rounded border shadow-sm flex flex-col justify-between">
-            <div className="p-4">
-              <h2 className="text-base font-bold text-white bg-green-600 -mx-4 -mt-4 p-3 rounded-t border-b uppercase tracking-wide text-center">
-                RESULTS
-              </h2>
-              <div className="space-y-2 mt-4">
-                {combinedResults.map((link, idx) => (
-                  <div key={link._id || idx} className="border-b border-gray-100 pb-1.5">
-                    {renderLink(link, "text-sm text-green-700 hover:underline font-medium block")}
-                  </div>
-                ))}
-                {combinedResults.length === 0 && (
-                  <div className="text-sm text-gray-500 italic">No results found.</div>
-                )}
-              </div>
-            </div>
-            <div className="p-3 bg-gray-50 text-center border-t rounded-b">
-              <Link href="/results" className="text-blue-600 hover:underline text-xs font-bold uppercase">
-                View All Results →
-              </Link>
-            </div>
-          </div>
+            const isJobCategory = category.slug === 'job';
 
-          {/* COLUMN 2: ADMIT CARDS */}
-          <div className="bg-white rounded border shadow-sm flex flex-col justify-between">
-            <div className="p-4">
-              <h2 className="text-base font-bold text-white bg-blue-600 -mx-4 -mt-4 p-3 rounded-t border-b uppercase tracking-wide text-center">
-                ADMIT CARD
-              </h2>
-              <div className="space-y-2 mt-4">
-                {combinedAdmitCards.map((link, idx) => (
-                  <div key={link._id || idx} className="border-b border-gray-100 pb-1.5">
-                    {renderLink(link, "text-sm text-blue-700 hover:underline font-medium block")}
-                  </div>
-                ))}
-                {combinedAdmitCards.length === 0 && (
-                  <div className="text-sm text-gray-500 italic">No admit cards found.</div>
-                )}
-              </div>
-            </div>
-            <div className="p-3 bg-gray-50 text-center border-t rounded-b">
-              <Link href="/admit-cards" className="text-blue-600 hover:underline text-xs font-bold uppercase">
-                View All Admit Cards →
-              </Link>
-            </div>
-          </div>
-
-          {/* COLUMN 3: LATEST JOBS & ONLINE FORMS */}
-          <div className="bg-white rounded border shadow-sm flex flex-col justify-between">
-            <div className="p-4">
-              <h2 className="text-base font-bold text-white bg-red-600 -mx-4 -mt-4 p-3 rounded-t border-b uppercase tracking-wide text-center">
-                LATEST JOBS
-              </h2>
-              <div className="space-y-3 mt-4">
-                {latestJobs.map((job) => (
-                  <div key={job.id} className="border-b border-gray-100 pb-2">
-                    <Link href={`/jobs/${job.slug}`} className="text-sm text-red-700 hover:underline font-medium block">
-                      {job.title}
-                    </Link>
-                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                      <span>📍 {job.location || job.organization?.name || 'All India'}</span>
-                      {job.lastDate && (
-                        <span>📅 {new Date(job.lastDate).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Additional Forms / Admission Sub-Section */}
-                {naukriFormLinks.length > 0 && (
-                  <div className="pt-2 border-t">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Latest Forms</span>
-                    {naukriFormLinks.slice(0, 3).map((link) => (
-                      <div key={link._id} className="mb-1">
-                        {renderLink(link, "text-sm text-orange-600 hover:underline block")}
+            return (
+              <div key={category._id} className="bg-white rounded border shadow-sm flex flex-col justify-between">
+                <div className="p-4">
+                  <h2 className={`text-base font-bold text-white ${colorClass} -mx-4 -mt-4 p-3 rounded-t border-b uppercase tracking-wide text-center`}>
+                    {category.displayName || category.name}
+                  </h2>
+                  <div className="space-y-3 mt-4">
+                    {category.items.map((item: any, i: number) => (
+                      <div key={item._id || i} className="border-b border-gray-100 pb-2">
+                        {isJobCategory ? (
+                          <>
+                            <Link href={`/jobs/${item.slug}`} className={`text-sm ${textClass} hover:underline font-medium block`}>
+                              {item.title}
+                            </Link>
+                            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+                              <span>📍 {item.location || item.organization?.name || 'All India'}</span>
+                              {item.lastDate && (
+                                <span>📅 {new Date(item.lastDate).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          renderLink(item, `text-sm ${textClass} hover:underline font-medium block`)
+                        )}
                       </div>
                     ))}
+                    {category.items.length === 0 && (
+                      <div className="text-sm text-gray-500 italic">No items found.</div>
+                    )}
                   </div>
-                )}
+                </div>
+                <div className="p-3 bg-gray-50 text-center border-t rounded-b">
+                  <Link href={`/categories/${category.slug}`} className="text-blue-600 hover:underline text-xs font-bold uppercase">
+                    View All {category.displayName} →
+                  </Link>
+                </div>
               </div>
-            </div>
-            <div className="p-3 bg-gray-50 text-center border-t rounded-b">
-              <Link href="/latest-jobs" className="text-blue-600 hover:underline text-xs font-bold uppercase">
-                View All Latest Jobs →
-              </Link>
-            </div>
-          </div>
+            );
+          })}
 
         </section>
 
