@@ -28,9 +28,7 @@ interface Job {
 
 async function getLatestJobs(): Promise<Job[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/jobs/latest`, {
       next: { revalidate: 3600 }
@@ -68,9 +66,7 @@ async function getLatestJobs(): Promise<Job[]> {
 
 async function getPopularJobs(): Promise<Job[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/jobs/popular`, {
       next: { revalidate: 3600 }
@@ -88,9 +84,7 @@ async function getPopularJobs(): Promise<Job[]> {
 
 async function getRedirectLinks(type: string): Promise<any[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/redirect-links?type=${type}&pageSize=10`, {
       next: { revalidate: 3600 }
@@ -105,11 +99,28 @@ async function getRedirectLinks(type: string): Promise<any[]> {
   }
 }
 
+// Fetch jobs by category type (e.g. 'result', 'admit-card')
+async function getJobsByType(type: string): Promise<any[]> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+    const response = await fetch(`${baseUrl}/api/jobs/by-type/${type}`, {
+      next: { revalidate: 3600 }
+    });
+
+    if (!response.ok) return [];
+    const result = await response.json();
+    // Assuming backend returns an array of { title, slug } for /api/jobs/by-type/:type
+    return Array.isArray(result) ? result.slice(0, 10) : [];
+  } catch (error) {
+    console.error(`Error fetching jobs for type ${type}:`, error);
+    return [];
+  }
+}
+
 async function getOrganizations(): Promise<{ _id: string, name: string, slug: string }[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const response = await fetch(`${baseUrl}/api/organizations/active`, {
       next: { revalidate: 3600 }
     });
@@ -125,7 +136,7 @@ async function getOrganizations(): Promise<{ _id: string, name: string, slug: st
 
 async function getFaqs() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const res = await fetch(`${baseUrl}/api/faqs/public`, {
       next: { revalidate: 3600 },
     });
@@ -141,9 +152,7 @@ async function getFaqs() {
 
 async function getBulletins(): Promise<any[]> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://yourdomain.com'
-      : 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const response = await fetch(`${baseUrl}/api/jobs/bulletins`, {
       next: { revalidate: 60 } // Shorter cache for bulletins
     });
@@ -176,8 +185,15 @@ const renderLink = (link: any, className: string) => {
 export default async function Home() {
   const latestJobs = await getLatestJobs();
   const popularJobs = await getPopularJobs();
+  
   const resultLinks = await getRedirectLinks('RESULT');
+  const resultJobs = await getJobsByType('result');
+  const combinedResults = [...resultJobs, ...resultLinks].slice(0, 10);
+  
   const admitCardLinks = await getRedirectLinks('ADMITCARD');
+  const admitCardJobs = await getJobsByType('admit-card');
+  const combinedAdmitCards = [...admitCardJobs, ...admitCardLinks].slice(0, 10);
+  
   const naukriFormLinks = await getRedirectLinks('ONLINEFORM');
   const admissionLinks = await getRedirectLinks('ADMISSION');
   const organizations = await getOrganizations();
@@ -336,12 +352,12 @@ export default async function Home() {
                 RESULTS
               </h2>
               <div className="space-y-2 mt-4">
-                {resultLinks.map((link) => (
-                  <div key={link._id} className="border-b border-gray-100 pb-1.5">
+                {combinedResults.map((link, idx) => (
+                  <div key={link._id || idx} className="border-b border-gray-100 pb-1.5">
                     {renderLink(link, "text-sm text-green-700 hover:underline font-medium block")}
                   </div>
                 ))}
-                {resultLinks.length === 0 && (
+                {combinedResults.length === 0 && (
                   <div className="text-sm text-gray-500 italic">No results found.</div>
                 )}
               </div>
@@ -360,12 +376,12 @@ export default async function Home() {
                 ADMIT CARD
               </h2>
               <div className="space-y-2 mt-4">
-                {admitCardLinks.map((link) => (
-                  <div key={link._id} className="border-b border-gray-100 pb-1.5">
+                {combinedAdmitCards.map((link, idx) => (
+                  <div key={link._id || idx} className="border-b border-gray-100 pb-1.5">
                     {renderLink(link, "text-sm text-blue-700 hover:underline font-medium block")}
                   </div>
                 ))}
-                {admitCardLinks.length === 0 && (
+                {combinedAdmitCards.length === 0 && (
                   <div className="text-sm text-gray-500 italic">No admit cards found.</div>
                 )}
               </div>
@@ -390,8 +406,10 @@ export default async function Home() {
                       {job.title}
                     </Link>
                     <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                      <span>📍 {job.location}</span>
-                      <span>📅 {new Date(job.lastDate).toLocaleDateString()}</span>
+                      <span>📍 {job.location || job.organization?.name || 'All India'}</span>
+                      {job.lastDate && (
+                        <span>📅 {new Date(job.lastDate).toLocaleDateString()}</span>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack -p 3001",
+    "dev:staging": "env-cmd -f .env.staging next dev --turbopack -p 3001",
     "build": "next build",
+    "build:staging": "env-cmd -f .env.staging next build",
     "start": "next start",
+    "start:staging": "env-cmd -f .env.staging next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -39,6 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
+    "env-cmd": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "postcss": "^8.5.5",
