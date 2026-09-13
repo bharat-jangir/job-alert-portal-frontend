@@ -1,10 +1,16 @@
-import DOMPurify from 'isomorphic-dompurify';
+import sanitizeHtml from 'sanitize-html';
 
 export default function JobContent({ htmlContent }: { htmlContent: string }) {
-  // Sanitize the HTML on the server
-  // This prevents XSS attacks while allowing safe HTML tags and inline styles
-  const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
-    ADD_ATTR: ['target'], // Allow target="_blank" for external links
+  // Sanitize the HTML on the server using sanitize-html (safe for Vercel/Edge)
+  const sanitizedHtml = sanitizeHtml(htmlContent, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      'img', 'h1', 'h2', 'span', 'style', 'div'
+    ]),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['style', 'class', 'id', 'align', 'valign', 'border', 'cellpadding', 'cellspacing', 'width', 'colspan', 'rowspan'],
+      a: ['href', 'name', 'target']
+    }
   });
 
   return (
