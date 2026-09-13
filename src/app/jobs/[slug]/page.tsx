@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import Link from 'next/link';
-import JobIframe from './JobIframe';
+import JobContent from './JobContent';
 
 interface Job {
   _id: string;
@@ -282,7 +282,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <span className="w-1.5 h-6 bg-blue-600 rounded"></span> Official Details & Description
               </h2>
-              <JobIframe htmlContent={job.htmlContent} />
+              <JobContent htmlContent={job.htmlContent} />
             </div>
 
             {/* Eligibility Criteria */}

@@ -1,6 +1,11 @@
 'use client';
 
+import { useState, useRef, useEffect, useCallback } from 'react';
+
 export default function JobIframe({ htmlContent }: { htmlContent: string }) {
+  const [iframeHeight, setIframeHeight] = useState('200px');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   // Inject CSS to fix horizontal scrolling caused by print-specific margins
   const resetStyles = `
     <style>
@@ -50,42 +55,57 @@ export default function JobIframe({ htmlContent }: { htmlContent: string }) {
     processedHtml = resetStyles + processedHtml;
   }
 
+  const updateHeight = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+    try {
+      const doc = iframe.contentWindow.document;
+      const wrapper = doc.querySelector('.responsive-wrapper');
+      const contentHeight = wrapper ? (wrapper as HTMLElement).offsetHeight : 0;
+      
+      // We can use scrollHeight for safety, but we don't mutate style directly to avoid React resets
+      const calculatedHeight = Math.max(
+        contentHeight,
+        doc.body.scrollHeight,
+        doc.documentElement.scrollHeight
+      );
+
+      if (calculatedHeight > 0) {
+        setIframeHeight((calculatedHeight + 30) + 'px');
+      }
+    } catch (err) {}
+  }, []);
+
+  const handleIframeLoad = () => {
+    updateHeight();
+    
+    // Fallback checks for slow-rendering content (images, fonts)
+    setTimeout(updateHeight, 200);
+    setTimeout(updateHeight, 1000);
+
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow?.document) {
+      try {
+        const ro = new ResizeObserver(() => updateHeight());
+        if (iframe.contentWindow.document.body) {
+          ro.observe(iframe.contentWindow.document.body);
+        }
+        const wrapper = iframe.contentWindow.document.querySelector('.responsive-wrapper');
+        if (wrapper) ro.observe(wrapper);
+      } catch (err) {}
+    }
+  };
+
   return (
     <div className="w-full overflow-x-hidden">
       <iframe
+        ref={iframeRef}
         srcDoc={processedHtml}
         className="w-full border-none overflow-hidden"
-        style={{ minHeight: '200px', transition: 'height 0.2s ease-in-out' }}
+        style={{ height: iframeHeight, transition: 'height 0.2s ease-in-out' }}
         scrolling="no"
-        onLoad={(e) => {
-          const iframe = e.target as HTMLIFrameElement;
-          const updateHeight = () => {
-            try {
-              if (iframe.contentWindow) {
-                const doc = iframe.contentWindow.document;
-                const height = Math.max(
-                  doc.body.scrollHeight,
-                  doc.documentElement.scrollHeight,
-                  doc.body.offsetHeight,
-                  doc.documentElement.offsetHeight
-                );
-                // Add a small buffer (e.g. 20px) to prevent cutoff
-                if (height) iframe.style.height = (height + 20) + 'px';
-              }
-            } catch (err) {}
-          };
-
-          // Initial update
-          setTimeout(updateHeight, 100);
-
-          // Watch for internal height changes
-          try {
-            if (iframe.contentWindow?.document.body) {
-              const ro = new ResizeObserver(() => updateHeight());
-              ro.observe(iframe.contentWindow.document.body);
-            }
-          } catch (err) {}
-        }}
+        onLoad={handleIframeLoad}
         sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
       />
     </div>
