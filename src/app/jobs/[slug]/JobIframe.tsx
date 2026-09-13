@@ -5,27 +5,50 @@ export default function JobIframe({ htmlContent }: { htmlContent: string }) {
   const resetStyles = `
     <style>
       html, body {
-        overflow-x: hidden !important;
         margin: 0 !important;
         padding: 0 !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important; /* hide overflow on body itself */
+      }
+      .responsive-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        width: 100%; /* let it expand as needed natively */
+        border-collapse: collapse;
+      }
+      td, th {
+        word-wrap: break-word;
+      }
+      img {
         max-width: 100% !important;
         height: auto !important;
-        min-height: 100% !important;
       }
-      .header-banner {
-        margin: 0 0 25px 0 !important; /* Reset the negative margins */
-      }
-      /* Ensure tables and large elements don't overflow */
-      table {
-        max-width: 100% !important;
+      /* Prevent giant unbroken links/text from stretching mobile */
+      * {
+        word-break: break-word;
       }
     </style>
   `;
 
-  // Inject before closing head if exists, else just prepend
-  const processedHtml = htmlContent.includes('</head>') 
-    ? htmlContent.replace('</head>', `${resetStyles}</head>`)
-    : resetStyles + htmlContent;
+  // Wrap the body content in a scrollable div
+  let processedHtml = htmlContent;
+  
+  if (processedHtml.includes('<body>')) {
+    processedHtml = processedHtml.replace('<body>', '<body><div class="responsive-wrapper">');
+    processedHtml = processedHtml.replace('</body>', '</div></body>');
+  } else {
+    processedHtml = `<div class="responsive-wrapper">${processedHtml}</div>`;
+  }
+
+  // Inject CSS
+  if (processedHtml.includes('</head>')) {
+    processedHtml = processedHtml.replace('</head>', `${resetStyles}</head>`);
+  } else {
+    processedHtml = resetStyles + processedHtml;
+  }
 
   return (
     <div className="w-full overflow-x-hidden">
@@ -63,7 +86,7 @@ export default function JobIframe({ htmlContent }: { htmlContent: string }) {
             }
           } catch (err) {}
         }}
-        sandbox="allow-same-origin allow-scripts"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
       />
     </div>
   );
