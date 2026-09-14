@@ -24,7 +24,7 @@ async function getAllJobs(): Promise<Job[]> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(`${baseUrl}/api/jobs/latest?limit=50`, {
-      next: { revalidate: 600 },
+      next: { revalidate: 60 },
     });
     if (!res.ok) throw new Error('Failed to fetch jobs');
     const result = await res.json();

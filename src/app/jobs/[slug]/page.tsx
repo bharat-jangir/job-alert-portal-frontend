@@ -40,7 +40,7 @@ interface JobMetadata {
 async function getJobMetadata(slug: string): Promise<JobMetadata | null> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     const { data: job } = await res.json();
     return {
@@ -58,7 +58,7 @@ async function getJobMetadata(slug: string): Promise<JobMetadata | null> {
 async function getJob(slug: string) {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     const { data } = await res.json();
     return data;

@@ -19,7 +19,7 @@ async function getResults() {
       : 'http://localhost:3001';
       
     const response = await fetch(`${baseUrl}/api/redirect-links?type=RESULT&pageSize=100`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
     
     if (!response.ok) return [];

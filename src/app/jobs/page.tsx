@@ -41,7 +41,7 @@ async function getJobs(page: number = 1, search?: string): Promise<JobsData> {
     const params = new URLSearchParams({ page: String(page), limit: '10' });
     if (search) params.set('search', search);
     const res = await fetch(`${baseUrl}/api/jobs?${params}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: 60 },
     });
     if (!res.ok) return { jobs: [], total: 0 };
     const result = await res.json();

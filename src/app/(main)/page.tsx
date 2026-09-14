@@ -31,7 +31,7 @@ async function getLatestJobs(): Promise<Job[]> {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/jobs/latest`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
 
     if (!response.ok) throw new Error('Failed to fetch latest jobs');
@@ -69,7 +69,7 @@ async function getPopularJobs(): Promise<Job[]> {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/jobs/popular`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
 
     if (!response.ok) return [];
@@ -87,7 +87,7 @@ async function getRedirectLinks(type: string): Promise<any[]> {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/redirect-links?type=${type}&pageSize=10`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
 
     if (!response.ok) return [];
@@ -105,7 +105,7 @@ async function getJobsByType(type: string): Promise<any[]> {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
     const response = await fetch(`${baseUrl}/api/jobs/by-type/${type}`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
 
     if (!response.ok) return [];
@@ -122,7 +122,7 @@ async function getActiveCategories(): Promise<any[]> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const response = await fetch(`${baseUrl}/api/job-categories/active`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
     if (!response.ok) return [];
     const result = await response.json();
@@ -141,7 +141,7 @@ async function getOrganizations(): Promise<{ _id: string, name: string, slug: st
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const response = await fetch(`${baseUrl}/api/organizations/active`, {
-      next: { revalidate: 3600 }
+      next: { revalidate: 60 }
     });
     if (!response.ok) return [];
     const result = await response.json();
@@ -157,7 +157,7 @@ async function getFaqs() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const res = await fetch(`${baseUrl}/api/faqs/public`, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 60 },
     });
     if (!res.ok) return [];
     const result = await res.json();
