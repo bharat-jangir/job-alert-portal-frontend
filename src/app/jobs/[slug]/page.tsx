@@ -291,9 +291,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                   <span className="w-1.5 h-6 bg-green-600 rounded"></span> Eligibility Criteria
                 </h2>
-                <div className="prose max-w-none text-gray-700">
-                  {job.eligibility}
-                </div>
+                <div className="prose max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: job.eligibility }} />
               </div>
             )}
           </div>
