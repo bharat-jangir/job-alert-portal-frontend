@@ -21,7 +21,7 @@ interface Faq {
 
 async function getFaqs(): Promise<Faq[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const res = await fetch(`${baseUrl}/api/faqs/public`, {
       next: { revalidate: 60 },
     });

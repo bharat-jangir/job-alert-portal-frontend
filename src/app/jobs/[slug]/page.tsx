@@ -1,7 +1,16 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import JobContent from './JobContent';
+import PostSections, { type Section } from '@/components/PostSections';
+import { inlineToPlain } from '@/lib/inline';
+
+/** Social/Article image: explicit OG image, else the first image block in the body. */
+function pickImage(job: any): string | undefined {
+  if (job.ogImage) return job.ogImage;
+  const first = (Array.isArray(job.sections) ? job.sections : []).find((x: any) => x?.type === 'image' && x.src);
+  return first?.src;
+}
 
 interface Job {
   _id: string;
@@ -29,36 +38,17 @@ interface Job {
   sourceUrl?: string;
 }
 
-interface JobMetadata {
-  title: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  organization: string;
-  qualification: string;
-}
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+/** Post types that are real job openings (eligible for JobPosting rich results). */
+const JOB_TYPES = new Set(['job', 'online-form']);
 
-async function getJobMetadata(slug: string): Promise<JobMetadata | null> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 60 } });
-    if (!res.ok) return null;
-    const { data: job } = await res.json();
-    return {
-      title: job.title,
-      metaTitle: job.metaTitle,
-      metaDescription: job.metaDescription,
-      organization: job.organization,
-      qualification: job.qualification,
-    };
-  } catch {
-    return null;
-  }
-}
-
+/** Same URL + options for metadata and page, so Next de-duplicates it into one request. */
 async function getJob(slug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${baseUrl}/api/jobs/${slug}`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API}/api/jobs/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 300, tags: ['posts', `post:${slug}`] },
+    });
     if (!res.ok) return null;
     const { data } = await res.json();
     return data;
@@ -67,66 +57,124 @@ async function getJob(slug: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const resolvedParams = await params;
-  const metadata = await getJobMetadata(resolvedParams.slug);
-
-  if (!metadata) {
-    return {
-      title: 'Job Not Found',
-      description: 'The requested job could not be found.'
-    };
+async function getRelated(slug: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${API}/api/jobs/${encodeURIComponent(slug)}/related`, {
+      next: { revalidate: 600, tags: ['posts'] },
+    });
+    if (!res.ok) return [];
+    const { data } = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
   }
+}
+
+const plain = (v?: string) => (v ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const fmtDate = (d?: string, withYear = true) =>
+  d && !isNaN(new Date(d).getTime())
+    ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
+    : null;
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const job = await getJob(slug);
+  if (!job) return { title: 'Not found', robots: { index: false, follow: false } };
+
+  const title = job.metaTitle || job.title;
+  const description =
+    job.metaDescription ||
+    plain(job.description).slice(0, 160) ||
+    `${job.title}${job.organization ? ` – ${job.organization}` : ''}. Last date, eligibility, vacancies and how to apply.`;
+  const url = job.canonicalUrl || `${SITE}/jobs/${job.slug}`;
 
   return {
-    title: metadata.metaTitle || metadata.title,
-    description: metadata.metaDescription || `Apply for ${metadata.title} at ${metadata.organization}. ${metadata.qualification} required.`,
+    title,
+    description,
+    alternates: { canonical: url },
     openGraph: {
-      title: metadata.metaTitle || metadata.title,
-      description: metadata.metaDescription || `Apply for ${metadata.title} at ${metadata.organization}. ${metadata.qualification} required.`,
+      title,
+      description,
+      url,
       type: 'article',
-      publishedTime: new Date().toISOString(),
-      authors: [metadata.organization],
+      publishedTime: job.publishedAt,
+      modifiedTime: job.updatedAt,
+      images: pickImage(job) ? [{ url: pickImage(job)! }] : undefined,
     },
+    twitter: { card: pickImage(job) ? 'summary_large_image' : 'summary', title, description },
   };
 }
 
 export default async function JobPage({ params }: { params: Promise<{ slug: string }> }) {
-  const resolvedParams = await params;
-  const job = await getJob(resolvedParams.slug);
+  const { slug } = await params;
+  const job = await getJob(slug);
 
-  if (!job) {
-    notFound();
+  if (!job) notFound();
+  // The post was renamed: send the old URL to the new one permanently (keeps SEO equity).
+  if (job.slug !== slug) permanentRedirect(`/jobs/${job.slug}`);
+
+  const related = await getRelated(job.slug);
+  const sections: Section[] = Array.isArray(job.sections) ? job.sections : [];
+  const orgName = job.organizationId?.name || job.organization;
+  const url = job.canonicalUrl || `${SITE}/jobs/${job.slug}`;
+  const lastDate = fmtDate(job.lastDate);
+  const expired = job.lastDate && new Date(job.lastDate) < new Date();
+
+  // Structured data must match the page: JobPosting only for real openings, Article for the rest.
+  const graph: any[] = [
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
+        { '@type': 'ListItem', position: 2, name: 'Jobs', item: `${SITE}/jobs` },
+        { '@type': 'ListItem', position: 3, name: job.title, item: url },
+      ],
+    },
+  ];
+  if (JOB_TYPES.has(job.type) && job.lastDate) {
+    graph.push({
+      '@type': 'JobPosting',
+      title: job.title,
+      description: plain(job.description) || job.title,
+      datePosted: job.publishedAt,
+      validThrough: job.lastDate,
+      employmentType: 'FULL_TIME',
+      directApply: false,
+      hiringOrganization: { '@type': 'Organization', name: orgName || 'Government of India' },
+      jobLocation: {
+        '@type': 'Place',
+        address: { '@type': 'PostalAddress', addressLocality: job.location || 'India', addressCountry: 'IN' },
+      },
+      baseSalary: job.salary
+        ? { '@type': 'MonetaryAmount', currency: 'INR', value: { '@type': 'QuantitativeValue', value: job.salary } }
+        : undefined,
+      identifier: { '@type': 'PropertyValue', name: orgName || 'Job Alert', value: job.slug },
+      url,
+    });
+  } else {
+    graph.push({
+      '@type': 'Article',
+      headline: job.title,
+      description: plain(job.description) || undefined,
+      datePublished: job.publishedAt,
+      dateModified: job.updatedAt,
+      mainEntityOfPage: url,
+      image: pickImage(job) || undefined,
+      publisher: { '@type': 'Organization', name: 'Job Alert' },
+    });
   }
-
-  // JSON-LD Structured Data for Google Rich Results
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'JobPosting',
-    title: job.title,
-    description: job.description || job.title,
-    hiringOrganization: {
-      '@type': 'Organization',
-      name: job.organization || 'Government of India',
-    },
-    jobLocation: {
-      '@type': 'Place',
-      address: { '@type': 'PostalAddress', addressLocality: job.location || 'India', addressCountry: 'IN' },
-    },
-    baseSalary: job.salary ? {
-      '@type': 'MonetaryAmount',
-      currency: 'INR',
-      value: { '@type': 'QuantitativeValue', value: job.salary, unitText: 'YEAR' },
-    } : undefined,
-    validThrough: job.lastDate,
-    datePosted: new Date().toISOString(),
-    employmentType: 'FULL_TIME',
-    educationRequirements: job.qualification,
-  };
+  const faqs = sections.filter((x): x is Extract<Section, { type: 'faq' }> => x.type === 'faq').flatMap((x) => x.items);
+  if (faqs.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((f) => ({ '@type': 'Question', name: inlineToPlain(f.question), acceptedAnswer: { '@type': 'Answer', text: inlineToPlain(f.answer) } })),
+    });
+  }
+  const jsonLd = { '@context': 'https://schema.org', '@graph': graph };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
       {/* Main Content */}
       <main className="flex-1 bg-gray-50">
@@ -174,20 +222,34 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                     </div>
                   </div>
                   <div className="flex-shrink-0">
-                    <a
-                      href={job.applyLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm w-full md:w-auto"
-                    >
-                      Apply Now
-                    </a>
+                    {job.applyLink && (
+                      <a
+                        href={job.applyLink}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="inline-flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm w-full md:w-auto"
+                      >
+                        Apply Now
+                      </a>
+                    )}
                   </div>
                 </div>
 
+                {job.updateNote && (
+                  <p className="mb-3 text-sm rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-4 py-2">
+                    <strong>Update:</strong> {job.updateNote}
+                    {fmtDate(job.updatedAt) && <span className="text-amber-700"> ({fmtDate(job.updatedAt)})</span>}
+                  </p>
+                )}
                 <div className="flex justify-between items-center bg-blue-50/50 rounded-lg px-4 py-3 border border-blue-100">
                   <span className="text-sm font-medium text-gray-700">
-                    Last Date to Apply: <span className="text-blue-700 font-semibold">{new Date(job.lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    {lastDate ? (
+                      <>
+                        Last Date to Apply: <span className={`font-semibold ${expired ? 'text-red-600' : 'text-blue-700'}`}>{lastDate}{expired ? ' (closed)' : ''}</span>
+                      </>
+                    ) : (
+                      <>Published: <span className="text-blue-700 font-semibold">{fmtDate(job.publishedAt) ?? '-'}</span></>
+                    )}
                   </span>
                   <div className="flex gap-2">
                     <button className="text-xs bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-50 transition">Save</button>
@@ -243,7 +305,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                         <div key={index} className="flex justify-between items-center text-sm">
                           <span className="text-gray-500">{item.label}</span>
                           <span className="font-semibold text-gray-900 whitespace-nowrap ml-2">
-                            {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            {fmtDate(item.date) ?? '—'}
                           </span>
                         </div>
                       ))
@@ -261,12 +323,13 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                   <div className="flex flex-wrap gap-2">
                     {job.tags && job.tags.length > 0 ? (
                       job.tags.map((tag: string, index: number) => (
-                        <span
+                        <Link
                           key={index}
-                          className="bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded text-xs font-medium shadow-sm hover:border-gray-300 transition-colors"
+                          href={`/tags/${encodeURIComponent(tag)}`}
+                          className="bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded text-xs font-medium shadow-sm hover:border-blue-400 hover:text-blue-700 transition-colors"
                         >
                           {tag}
-                        </span>
+                        </Link>
                       ))
                     ) : (
                       <span className="text-sm text-gray-500 italic">No tags available.</span>
@@ -282,7 +345,11 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <span className="w-1.5 h-6 bg-blue-600 rounded"></span> Official Details & Description
               </h2>
-              <JobContent htmlContent={job.htmlContent} />
+              {sections.length > 0 && <PostSections sections={sections} />}
+              {job.htmlContent && <JobContent htmlContent={job.htmlContent} />}
+              {sections.length === 0 && !job.htmlContent && (
+                <p className="text-gray-500 italic">Details will be updated soon.</p>
+              )}
             </div>
 
             {/* Eligibility Criteria */}
@@ -293,6 +360,22 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                 </h2>
                 <JobContent htmlContent={job.eligibility} />
               </div>
+            )}
+
+            {related.length > 0 && (
+              <section className="mt-8" aria-labelledby="related-heading">
+                <h2 id="related-heading" className="text-xl font-bold text-gray-900 mb-4">Related updates</h2>
+                <ul className="bg-white rounded-xl border border-gray-200 divide-y">
+                  {related.map((r: any) => (
+                    <li key={r._id}>
+                      <Link href={`/jobs/${r.slug}`} className="flex justify-between gap-4 p-4 hover:bg-gray-50">
+                        <span className="text-blue-700 font-medium">{r.title}</span>
+                        <span className="text-xs text-gray-400 shrink-0">{fmtDate(r.publishedAt, false)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </div>
         </div>

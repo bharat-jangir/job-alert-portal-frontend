@@ -2,16 +2,16 @@
 import { MetadataRoute } from 'next';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const API_URL  = process.env.NEXT_PUBLIC_API_URL  || 'http://localhost:3001';
+const API_URL  = process.env.NEXT_PUBLIC_API_URL  || 'http://localhost:5000';
 
 async function getAllJobSlugs(): Promise<{ slug: string; updatedAt?: string }[]> {
   try {
-    const res = await fetch(`${API_URL}/api/jobs?limit=500`, { cache: 'no-store' });
+    // Lightweight feed (published posts only). Tagged so a publish refreshes it immediately.
+    const res = await fetch(`${API_URL}/api/jobs/sitemap`, { next: { revalidate: 600, tags: ['sitemap'] } });
     if (!res.ok) return [];
     const result = await res.json();
-    const payload = result.data ?? result;
-    const jobs: any[] = payload.jobs || [];
-    return jobs.map((j) => ({ slug: j.slug, updatedAt: j.updatedAt }));
+    const items: any[] = result.data ?? result ?? [];
+    return items.map((j) => ({ slug: j.slug, updatedAt: j.updatedAt }));
   } catch {
     return [];
   }

@@ -22,7 +22,7 @@ interface Job {
 
 async function getAllJobs(): Promise<Job[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const res = await fetch(`${baseUrl}/api/jobs/latest?limit=50`, {
       next: { revalidate: 60 },
     });

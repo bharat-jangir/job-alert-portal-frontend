@@ -16,7 +16,7 @@ async function getResults() {
   try {
     const baseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://yourdomain.com' 
-      : 'http://localhost:3001';
+      : 'http://localhost:5000';
       
     const response = await fetch(`${baseUrl}/api/redirect-links?type=RESULT&pageSize=100`, {
       next: { revalidate: 60 }

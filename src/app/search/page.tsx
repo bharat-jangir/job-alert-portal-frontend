@@ -62,7 +62,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 
 async function fetchJobs(params: URLSearchParams): Promise<{ jobs: Job[]; total: number }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const res = await fetch(`${baseUrl}/api/jobs?${params}`, { cache: 'no-store' });
     if (!res.ok) return { jobs: [], total: 0 };
     const result = await res.json();

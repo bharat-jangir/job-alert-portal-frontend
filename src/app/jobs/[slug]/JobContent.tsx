@@ -4,12 +4,18 @@ export default function JobContent({ htmlContent }: { htmlContent: string }) {
   // Sanitize the HTML on the server using sanitize-html (safe for Vercel/Edge)
   const sanitizedHtml = sanitizeHtml(htmlContent, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-      'img', 'h1', 'h2', 'span', 'style', 'div'
+      'img', 'h1', 'h2', 'span', 'style', 'div', 'iframe'
     ]),
+    // Keep in sync with allowedIframeHostnames in the backend (src/common/utils/sanitize.ts).
+    allowedIframeHostnames: [
+      'www.youtube.com', 'www.youtube-nocookie.com', 'docs.google.com', 'drive.google.com', 'player.vimeo.com',
+    ],
+    exclusiveFilter: (frame) => frame.tag === 'iframe' && !frame.attribs.src,
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
       '*': ['style', 'class', 'id', 'align', 'valign', 'border', 'cellpadding', 'cellspacing', 'width', 'colspan', 'rowspan'],
-      a: ['href', 'name', 'target']
+      a: ['href', 'name', 'target'],
+      iframe: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'title', 'loading']
     }
   });
 
@@ -38,6 +44,12 @@ export default function JobContent({ htmlContent }: { htmlContent: string }) {
         .external-job-content img {
           max-width: 100% !important;
           height: auto !important;
+        }
+        .external-job-content iframe {
+          max-width: 100% !important;
+          aspect-ratio: 16 / 9;
+          height: auto !important;
+          border: 0;
         }
         /* Restore basic typography that Tailwind resets */
         .external-job-content h1, .external-job-content h2, 

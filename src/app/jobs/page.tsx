@@ -37,7 +37,7 @@ interface JobsPageProps {
 
 async function getJobs(page: number = 1, search?: string): Promise<JobsData> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const params = new URLSearchParams({ page: String(page), limit: '10' });
     if (search) params.set('search', search);
     const res = await fetch(`${baseUrl}/api/jobs?${params}`, {

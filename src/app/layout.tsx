@@ -8,6 +8,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  alternates: { types: { 'application/rss+xml': `${SITE_URL}/feed.xml` } },
   title: {
     default: 'Job Alert – Latest Sarkari Naukri, Results & Admit Cards 2025',
     template: '%s | Job Alert',
