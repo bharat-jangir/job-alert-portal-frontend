@@ -16,6 +16,7 @@ interface Job {
   _id: string;
   title: string;
   slug: string;
+  type?: string;
   htmlContent: string;
   organization: string;
   location: string;
@@ -36,6 +37,46 @@ interface Job {
   metaTitle?: string;
   metaDescription?: string;
   sourceUrl?: string;
+}
+
+/** Resolves context-aware action button text based on post type (admit card, result, answer key, etc.) */
+function getActionLabel(type?: string, title?: string): string {
+  const t = (type || '').toLowerCase().trim();
+  const lowerTitle = (title || '').toLowerCase();
+
+  if (t === 'admit-card' || lowerTitle.includes('admit card') || lowerTitle.includes('hall ticket') || lowerTitle.includes('call letter')) {
+    return 'Download Admit Card';
+  }
+  if (t === 'result' || lowerTitle.includes('result') || lowerTitle.includes('score card') || lowerTitle.includes('merit list')) {
+    return 'Check Result';
+  }
+  if (t === 'answer-key' || lowerTitle.includes('answer key') || lowerTitle.includes('ans key') || lowerTitle.includes('objection')) {
+    return 'Check Answer Key';
+  }
+  if (t === 'syllabus' || lowerTitle.includes('syllabus') || lowerTitle.includes('exam pattern')) {
+    return 'Download Syllabus';
+  }
+  if (t === 'admission' || lowerTitle.includes('admission')) {
+    return 'Apply for Admission';
+  }
+  return 'Apply Online';
+}
+
+/** Resolves context-aware date banner label */
+function getDateLabel(type?: string, title?: string): string {
+  const t = (type || '').toLowerCase().trim();
+  const lowerTitle = (title || '').toLowerCase();
+
+  if (t === 'admit-card' || lowerTitle.includes('admit card') || lowerTitle.includes('hall ticket')) {
+    return 'Download Last Date';
+  }
+  if (t === 'result' || lowerTitle.includes('result')) {
+    return 'Result Declared Date';
+  }
+  if (t === 'answer-key' || lowerTitle.includes('answer key')) {
+    return 'Objection Last Date';
+  }
+  return 'Last Date to Apply';
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -229,7 +270,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                         rel="noopener noreferrer nofollow"
                         className="inline-flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm w-full md:w-auto"
                       >
-                        Apply Now
+                        {getActionLabel(job.type, job.title)}
                       </a>
                     )}
                   </div>
@@ -245,7 +286,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
                   <span className="text-sm font-medium text-gray-700">
                     {lastDate ? (
                       <>
-                        Last Date to Apply: <span className={`font-semibold ${expired ? 'text-red-600' : 'text-blue-700'}`}>{lastDate}{expired ? ' (closed)' : ''}</span>
+                        {getDateLabel(job.type, job.title)}: <span className={`font-semibold ${expired ? 'text-red-600' : 'text-blue-700'}`}>{lastDate}{expired ? ' (closed)' : ''}</span>
                       </>
                     ) : (
                       <>Published: <span className="text-blue-700 font-semibold">{fmtDate(job.publishedAt) ?? '-'}</span></>
