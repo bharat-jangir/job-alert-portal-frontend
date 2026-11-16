@@ -17,3 +17,10 @@ export function sanitizeRichHtml(html: string): string {
     },
   });
 }
+
+/** Strips all markup: for places that must show an HTML field as plain text (previews, meta text). */
+export function toPlainText(html: string): string {
+  return sanitizeHtml(html ?? '', { allowedTags: [], allowedAttributes: {} })
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+\n/g, '\n').trim();
+}

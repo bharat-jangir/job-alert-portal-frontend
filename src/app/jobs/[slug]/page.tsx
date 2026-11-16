@@ -4,6 +4,8 @@ import Link from 'next/link';
 import JobContent from './JobContent';
 import PostSections, { type Section } from '@/components/PostSections';
 import { inlineToPlain } from '@/lib/inline';
+import { apiGet, apiGetOptional, ApiError } from '@/lib/api';
+import { SITE as SITE_BRAND } from '@/lib/site';
 
 /** Social/Article image: explicit OG image, else the first image block in the body. */
 function pickImage(job: any): string | undefined {
@@ -79,37 +81,28 @@ function getDateLabel(type?: string, title?: string): string {
   return 'Last Date to Apply';
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 /** Post types that are real job openings (eligible for JobPosting rich results). */
 const JOB_TYPES = new Set(['job', 'online-form']);
 
-/** Same URL + options for metadata and page, so Next de-duplicates it into one request. */
+/**
+ * Same URL + options for metadata and page, so Next de-duplicates it into one request.
+ * Only a real 404 means "no such post". Any other failure (timeout, 5xx, API asleep) THROWS: Next then
+ * keeps the last good copy of the page, or shows the error page. It must never become a cached 404 with
+ * `noindex`, which could get a perfectly good post dropped from Google.
+ */
 async function getJob(slug: string) {
   try {
-    const res = await fetch(`${API}/api/jobs/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 300, tags: ['posts', `post:${slug}`] },
-    });
-    if (!res.ok) return null;
-    const { data } = await res.json();
-    return data;
-  } catch {
-    return null;
+    return await apiGet<any>(`/api/jobs/${encodeURIComponent(slug)}`, { revalidate: 300, tags: ['posts', `post:${slug}`] });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
   }
 }
 
-async function getRelated(slug: string): Promise<any[]> {
-  try {
-    const res = await fetch(`${API}/api/jobs/${encodeURIComponent(slug)}/related`, {
-      next: { revalidate: 600, tags: ['posts'] },
-    });
-    if (!res.ok) return [];
-    const { data } = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
-}
+/** Related posts are a bonus: the post is still worth showing without them. */
+const getRelated = (slug: string) =>
+  apiGetOptional<any[]>(`/api/jobs/${encodeURIComponent(slug)}/related`, [], { revalidate: 600, tags: ['posts'] });
 
 const plain = (v?: string) => (v ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 const fmtDate = (d?: string, withYear = true) =>
@@ -189,7 +182,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
       baseSalary: job.salary
         ? { '@type': 'MonetaryAmount', currency: 'INR', value: { '@type': 'QuantitativeValue', value: job.salary } }
         : undefined,
-      identifier: { '@type': 'PropertyValue', name: orgName || 'Job Alert', value: job.slug },
+      identifier: { '@type': 'PropertyValue', name: orgName || SITE_BRAND.name, value: job.slug },
       url,
     });
   } else {
@@ -201,7 +194,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
       dateModified: job.updatedAt,
       mainEntityOfPage: url,
       image: pickImage(job) || undefined,
-      publisher: { '@type': 'Organization', name: 'Job Alert' },
+      publisher: { '@type': 'Organization', name: SITE_BRAND.name },
     });
   }
   const faqs = sections.filter((x): x is Extract<Section, { type: 'faq' }> => x.type === 'faq').flatMap((x) => x.items);

@@ -1,13 +1,14 @@
 'use client'
 import React, { useState } from 'react';
 import Header from '../../components/Header';
+import { SITE } from '@/lib/site';
 
 const funFacts = [
   'We update job listings in real-time so you never miss an opportunity!',
   'Our platform covers both government and private sector jobs.',
   'You can search for jobs by keyword, location, or type.',
   'We are committed to providing accurate and reliable information.',
-  'Thousands of users trust Job Alert Web for their career updates.'
+  `Thousands of users trust ${SITE.name} for their career updates.`
 ];
 
 export default function AboutPage() {
@@ -27,7 +28,7 @@ export default function AboutPage() {
       <main className="max-w-3xl mx-auto py-16 px-4">
         <h1 className="text-4xl font-bold mb-6 text-center">About Us</h1>
         <p className="text-lg mb-8 text-gray-700 text-center">
-          Welcome to Job Alert Web – your trusted source for the latest job updates, admit cards, results, and answer keys. Our mission is to empower job seekers by providing timely, accurate, and comprehensive information to help you achieve your career goals.
+          Welcome to {SITE.name} – your trusted source for the latest job updates, admit cards, results, and answer keys. Our mission is to empower job seekers by providing timely, accurate, and comprehensive information to help you achieve your career goals.
         </p>
         <section className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">Our Mission</h2>

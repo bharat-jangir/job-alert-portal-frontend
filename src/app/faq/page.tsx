@@ -5,11 +5,13 @@ import Footer from '@/components/Footer';
 import { FaqAccordion } from '@/components/FaqAccordion';
 import Link from 'next/link';
 import { sanitizeRichHtml } from '@/lib/sanitize';
+import { apiGetOptional } from '@/lib/api';
+import { SITE } from '@/lib/site';
 import { HelpCircle, ChevronRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Frequently Asked Questions (FAQ) – Job Alert',
-  description: 'Find answers to common questions about government jobs, admit cards, results, answer keys and sarkari naukri notifications on Job Alert.',
+  title: 'Frequently Asked Questions (FAQ)',
+  description: `Find answers to common questions about government jobs, admit cards, results, answer keys and sarkari naukri notifications on ${SITE.name}.`,
   robots: { index: true, follow: true },
 };
 
@@ -21,28 +23,19 @@ interface Faq {
 }
 
 async function getFaqs(): Promise<Faq[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const res = await fetch(`${baseUrl}/api/faqs/public`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return [];
-    const result = await res.json();
-    const payload = result.data ?? result;
-    return Array.isArray(payload) ? payload.map((f: Faq) => ({ ...f, answer: sanitizeRichHtml(f.answer) })) : [];
-  } catch {
-    return [];
-  }
+  // the page has built-in default answers below, so an unreachable API is not worth an error page
+  const payload = await apiGetOptional<Faq[]>('/api/faqs/public', [], { revalidate: 300 });
+  return Array.isArray(payload) ? payload.map((f) => ({ ...f, answer: sanitizeRichHtml(f.answer) })) : [];
 }
 
-const STATIC_FAQS: Faq[] = [
+const STATIC_FAQS: Faq[] = ([
   { _id: 's1', question: 'What is Job Alert?', category: 'General', answer: 'Job Alert is a free platform that aggregates the latest Government of India job notifications, results, admit cards, answer keys, online forms, and sarkari yojana updates in one place.' },
   { _id: 's2', question: 'How do I apply for a government job listed here?', category: 'Applying', answer: 'Click on the job listing and then click the "Apply Now" button. You will be redirected to the official government website where you can submit your application. Job Alert does not collect your personal data.' },
   { _id: 's3', question: 'How often is the data updated?', category: 'General', answer: 'Our team updates job notifications daily. You can also subscribe to our newsletter or join our Telegram group for instant notifications.' },
   { _id: 's4', question: 'Is Job Alert free to use?', category: 'General', answer: 'Yes, Job Alert is completely free for all users. We will never charge you for accessing job notifications, results or admit cards.' },
   { _id: 's5', question: 'How do I download an admit card?', category: 'Admit Cards', answer: 'Go to the Admit Cards section, click on your exam, and follow the link to the official website. You will need your registration number and date of birth to download the hall ticket.' },
   { _id: 's6', question: 'Where can I check exam results?', category: 'Results', answer: 'Visit the Results section on Job Alert. Each result post links directly to the official board or commission website where you can check your result by roll number or registration number.' },
-];
+] as Faq[]).map((f) => ({ ...f, question: f.question.replaceAll('Job Alert', SITE.name), answer: f.answer.replaceAll('Job Alert', SITE.name) }));
 
 export default async function FaqPage() {
   const dbFaqs = await getFaqs();
@@ -59,7 +52,7 @@ export default async function FaqPage() {
             <HelpCircle className="h-7 w-7 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Frequently Asked Questions</h1>
-          <p className="text-blue-200 text-sm">Everything you need to know about Job Alert and government job applications</p>
+          <p className="text-blue-200 text-sm">Everything you need to know about {SITE.name} and government job applications</p>
         </div>
       </div>
 

@@ -9,7 +9,8 @@
     "build:staging": "env-cmd -f .env.staging next build",
     "start": "next start -p 3000",
     "start:staging": "env-cmd -f .env.staging next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:links": "node scripts/check-links.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

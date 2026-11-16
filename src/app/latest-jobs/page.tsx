@@ -2,10 +2,11 @@
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Calendar, Building2, MapPin } from 'lucide-react';
+import { apiGet } from '@/lib/api';
 
 export const metadata: Metadata = {
-  title: 'Latest Government Jobs 2025 – Sarkari Naukri | Job Alert',
-  description: 'Find all latest government jobs notifications 2025. SSC, UPSC, Railway, Banking, Police and state government jobs.',
+  title: `Latest Government Jobs ${new Date().getFullYear()} – Sarkari Naukri`,
+  description: `Find all latest government jobs notifications ${new Date().getFullYear()}. SSC, UPSC, Railway, Banking, Police and state government jobs.`,
   robots: { index: true, follow: true },
 };
 
@@ -21,18 +22,9 @@ interface Job {
 }
 
 async function getAllJobs(): Promise<Job[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const res = await fetch(`${baseUrl}/api/jobs/latest?limit=50`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) throw new Error('Failed to fetch jobs');
-    const result = await res.json();
-    const payload = result.data ?? result;
-    return Array.isArray(payload) ? payload : payload.jobs || [];
-  } catch {
-    return [];
-  }
+  // throws if the API is down: Next keeps the last good page instead of caching an empty list
+  const payload = await apiGet<any>('/api/jobs/latest?limit=50', { tags: ['posts'] });
+  return Array.isArray(payload) ? payload : payload?.jobs || [];
 }
 
 export default async function LatestJobsPage() {
@@ -41,7 +33,7 @@ export default async function LatestJobsPage() {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Latest Government Jobs 2025</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Latest Government Jobs {new Date().getFullYear()}</h1>
         <p className="text-gray-500 text-sm">All new Sarkari Naukri notifications updated daily</p>
       </div>
 

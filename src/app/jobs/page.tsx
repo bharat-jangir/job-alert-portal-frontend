@@ -2,11 +2,13 @@
 import { Suspense } from 'react';
 import { Loader2, MapPin, Building2, Calendar } from 'lucide-react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import { apiGetList } from '@/lib/api';
 
 export const metadata: Metadata = {
-  title: 'Latest Government Jobs 2025 – Sarkari Naukri | Job Alert',
-  description: 'Browse all latest government job notifications. UPSC, SSC, Railway, Bank, Police and state government jobs 2025.',
+  title: `Latest Government Jobs ${new Date().getFullYear()} – Sarkari Naukri`,
+  description: `Browse all latest government job notifications. UPSC, SSC, Railway, Bank, Police and state government jobs ${new Date().getFullYear()}.`,
   robots: { index: true, follow: true },
 };
 
@@ -36,25 +38,11 @@ interface JobsPageProps {
 }
 
 async function getJobs(page: number = 1, search?: string): Promise<JobsData> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const params = new URLSearchParams({ page: String(page), limit: '10' });
-    if (search) params.set('search', search);
-    const res = await fetch(`${baseUrl}/api/jobs?${params}`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return { jobs: [], total: 0 };
-    const result = await res.json();
-    // Backend returns { jobs, total } wrapped in response interceptor as { data: { jobs, total } }
-    // Direct NestJS response (no global interceptor) → { jobs, total }
-    const payload = result.data ?? result;
-    return {
-      jobs: payload.jobs || [],
-      total: payload.total || 0,
-    };
-  } catch {
-    return { jobs: [], total: 0 };
-  }
+  const params = new URLSearchParams({ page: String(page), limit: '10' });
+  if (search) params.set('search', search);
+  // throws if the API is down: no empty page gets cached (see lib/api.ts)
+  const payload = await apiGetList<any>(`/api/jobs?${params}`, {}, { tags: ['posts'] });
+  return { jobs: payload?.jobs || [], total: payload?.total || 0 };
 }
 
 function JobsList({ jobs }: { jobs: Job[] }) {
@@ -164,6 +152,8 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const currentPage = Number(resolvedParams.page) || 1;
   const search = resolvedParams.search || '';
   const { jobs, total } = await getJobs(currentPage, search);
+  // a page number beyond the last one is a real 404, not an empty 200 page
+  if (currentPage > 1 && jobs.length === 0) notFound();
   const totalPages = Math.ceil(total / 10);
   const from = ((currentPage - 1) * 10) + 1;
   const to = Math.min(currentPage * 10, total);
@@ -172,7 +162,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">Latest Government Jobs 2025</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Latest Government Jobs {new Date().getFullYear()}</h1>
         <p className="text-gray-500 text-sm">Sarkari Naukri – Latest Govt Job Notifications</p>
       </div>
 

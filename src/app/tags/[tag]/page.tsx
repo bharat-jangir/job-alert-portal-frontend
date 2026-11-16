@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Calendar, Building2, MapPin } from 'lucide-react';
 
-const API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+import { apiGetList, SITE_URL as SITE } from '@/lib/api';
 const PAGE_SIZE = 20;
 
 interface Post {
@@ -15,16 +14,13 @@ interface Post {
 const unwrap = (r: any) => r?.data ?? r;
 
 async function getPosts(tag: string, page: number): Promise<{ jobs: Post[]; total: number; totalPages: number }> {
-  try {
-    const res = await fetch(`${API}/api/jobs?tag=${encodeURIComponent(tag)}&page=${page}&limit=${PAGE_SIZE}`, {
-      next: { revalidate: 60, tags: ['posts'] },
-    });
-    if (!res.ok) return { jobs: [], total: 0, totalPages: 0 };
-    const p = unwrap(await res.json());
-    return { jobs: p.jobs ?? [], total: p.total ?? 0, totalPages: p.totalPages ?? 0 };
-  } catch {
-    return { jobs: [], total: 0, totalPages: 0 };
-  }
+  // throws if the API is down (see lib/api.ts): never cache an empty tag page
+  const p = await apiGetList<{ jobs: Post[]; total: number; totalPages: number }>(
+    `/api/jobs?tag=${encodeURIComponent(tag)}&page=${page}&limit=${PAGE_SIZE}`,
+    { jobs: [], total: 0, totalPages: 0 },
+    { tags: ['posts'] },
+  );
+  return { jobs: p?.jobs ?? [], total: p?.total ?? 0, totalPages: p?.totalPages ?? 0 };
 }
 
 const decode = (t: string) => { try { return decodeURIComponent(t); } catch { return t; } };
@@ -50,7 +46,8 @@ export default async function TagPage({ params, searchParams }: {
   const tag = decode((await params).tag);
   const page = Math.max(1, Math.floor(Number((await searchParams).page)) || 1);
   const { jobs, total, totalPages } = await getPosts(tag, page);
-  if (page === 1 && total === 0) notFound();
+  // no posts for this tag, or a page number beyond the last one: a real 404, not an empty 200 page
+  if (jobs.length === 0) notFound();
   const base = `/tags/${encodeURIComponent(tag)}`;
   return (
     <div className="w-full">

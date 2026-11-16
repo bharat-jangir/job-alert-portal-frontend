@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { SITE } from '@/lib/site';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -10,17 +11,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   alternates: { types: { 'application/rss+xml': `${SITE_URL}/feed.xml` } },
   title: {
-    default: 'Job Alert – Latest Sarkari Naukri, Results & Admit Cards 2025',
-    template: '%s | Job Alert',
+    default: `${SITE.name} – Latest Sarkari Naukri, Results & Admit Cards ${new Date().getFullYear()}`,
+    template: `%s | ${SITE.name}`,
   },
   description: 'Find latest government jobs, sarkari naukri, recruitment notifications, admit cards, and results.',
   keywords: 'sarkari naukri, government jobs, admit card, result, answer key, online form, SSC, UPSC, Railway, Bank',
-  authors: [{ name: 'Job Alert' }],
-  creator: 'Job Alert',
+  authors: [{ name: SITE.name }],
+  creator: SITE.name,
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    siteName: 'Job Alert',
+    siteName: SITE.name,
     url: SITE_URL,
   },
   twitter: { card: 'summary_large_image' },

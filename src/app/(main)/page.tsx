@@ -1,188 +1,49 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { apiGet, apiGetOptional, SITE } from '@/lib/api';
+import { toPlainText } from '@/lib/sanitize';
 
 // SEO Metadata
 export const metadata: Metadata = {
-  title: 'RojgarResult - Latest Government Jobs, Results & Admit Cards 2026',
+  title: { absolute: `${SITE.name} – Latest Government Jobs, Results & Admit Cards ${new Date().getFullYear()}` },
   description: 'Find latest government jobs, examination results, and admit cards. Stay updated with upcoming job notifications, UPSC, SSC, Railway, and Banking jobs.',
   keywords: 'government jobs, latest jobs, UPSC jobs, SSC jobs, railway jobs, banking jobs, job alerts, exam results, admit cards',
   openGraph: {
-    title: 'RojgarResult - Latest Government Jobs, Results & Admit Cards 2026',
+    title: `${SITE.name} – Latest Government Jobs, Results & Admit Cards ${new Date().getFullYear()}`,
     description: 'Find latest government jobs, examination results, and admit cards.',
     type: 'website',
     locale: 'en_US',
-    siteName: 'RojgarResult',
+    siteName: SITE.name,
   },
 };
 
 interface Job {
-  id: number;
+  _id?: string;
   title: string;
   slug: string;
-  category: string;
-  postedDate: string;
-  lastDate: string;
-  location: string;
-  organization: string;
+  lastDate?: string;
+  location?: string;
+  organization?: string | { name?: string };
 }
 
-async function getLatestJobs(): Promise<Job[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    const response = await fetch(`${baseUrl}/api/jobs/latest`, {
-      next: { revalidate: 60 }
-    });
-
-    if (!response.ok) throw new Error('Failed to fetch latest jobs');
-    const result = await response.json();
-    return result.data || [];
-  } catch (error) {
-    console.error('Error fetching latest jobs:', error);
-    return [
-      {
-        id: 1,
-        title: "BPSC Motor Vehicle Inspector Online Form 2026",
-        slug: "bpsc-motor-vehicle",
-        category: "Government Jobs",
-        postedDate: "2026-01-15",
-        lastDate: "2026-02-15",
-        location: "Bihar",
-        organization: "BPSC"
-      },
-      {
-        id: 2,
-        title: "SSC Stenographer Online Form 2026",
-        slug: "ssc-stenographer",
-        category: "Government Jobs",
-        postedDate: "2026-01-13",
-        lastDate: "2026-02-20",
-        location: "All India",
-        organization: "SSC"
-      }
-    ];
-  }
-}
-
-async function getPopularJobs(): Promise<Job[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    const response = await fetch(`${baseUrl}/api/jobs/popular`, {
-      next: { revalidate: 60 }
-    });
-
-    if (!response.ok) return [];
-    const result = await response.json();
-    const data = Array.isArray(result) ? result : (result.data || []);
-    return data.slice(0, 5);
-  } catch (error) {
-    console.error('Error fetching popular jobs:', error);
-    return [];
-  }
-}
-
-async function getRedirectLinks(type: string): Promise<any[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    const response = await fetch(`${baseUrl}/api/redirect-links?type=${type}&pageSize=10`, {
-      next: { revalidate: 60 }
-    });
-
-    if (!response.ok) return [];
-    const result = await response.json();
-    return result.data?.links || [];
-  } catch (error) {
-    console.error(`Error fetching redirect links for ${type}:`, error);
-    return [];
-  }
-}
-
-// Fetch jobs by category type (e.g. 'result', 'admit-card')
-async function getJobsByType(type: string): Promise<any[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-    const response = await fetch(`${baseUrl}/api/jobs/by-type/${type}`, {
-      next: { revalidate: 60 }
-    });
-
-    if (!response.ok) return [];
-    const result = await response.json();
-    const data = result.data ?? result;
-    return Array.isArray(data) ? data.slice(0, 10) : [];
-  } catch (error) {
-    console.error(`Error fetching jobs for type ${type}:`, error);
-    return [];
-  }
-}
-
-async function getActiveCategories(): Promise<any[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const response = await fetch(`${baseUrl}/api/job-categories/active`, {
-      next: { revalidate: 60 }
-    });
-    if (!response.ok) return [];
-    const result = await response.json();
-    return result.data ?? result;
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return [];
-  }
-}
-
+/** Admin "redirect links" use the category slug without hyphens, upper-cased (answer-key -> ANSWERKEY). */
 function slugToRedirectType(slug: string): string {
   return slug.replace(/-/g, '').toUpperCase();
 }
 
-async function getOrganizations(): Promise<{ _id: string, name: string, slug: string }[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const response = await fetch(`${baseUrl}/api/organizations/active`, {
-      next: { revalidate: 60 }
-    });
-    if (!response.ok) return [];
-    const result = await response.json();
-    const data = result.data ?? result;
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-    return [];
-  }
-}
+// Main content: these THROW when the API is unreachable, so Next keeps serving the last good page
+// (or shows the error page) instead of caching an empty home page. See lib/api.ts.
+const TAGS = { tags: ['posts', 'home'] };
+const getActiveCategories = () => apiGet<any[]>('/api/job-categories/active', { revalidate: 300, tags: ['categories', 'home'] });
+const getJobsByType = (type: string) => apiGet<any[]>(`/api/jobs/by-type/${encodeURIComponent(type)}`, TAGS);
 
-async function getFaqs() {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const res = await fetch(`${baseUrl}/api/faqs/public`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return [];
-    const result = await res.json();
-    const payload = result.data ?? result;
-    return Array.isArray(payload) ? payload.slice(0, 4) : [];
-  } catch (error) {
-    console.error('Error fetching FAQs:', error);
-    return [];
-  }
-}
-
-async function getBulletins(): Promise<any[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const response = await fetch(`${baseUrl}/api/jobs/bulletins`, {
-      next: { revalidate: 60 } // Shorter cache for bulletins
-    });
-    if (!response.ok) return [];
-    const result = await response.json();
-    return Array.isArray(result) ? result : (result.data || []);
-  } catch (error) {
-    console.error('Error fetching bulletins:', error);
-    return [];
-  }
-}
+// Side widgets: the page is still worth showing without them.
+const getPopularJobs = () => apiGetOptional<Job[]>('/api/jobs/popular', [], TAGS);
+const getBulletins = () => apiGetOptional<any[]>('/api/jobs/bulletins', [], TAGS);
+const getOrganizations = () => apiGetOptional<{ _id: string; name: string; slug: string }[]>('/api/organizations/active', [], { tags: ['organizations'] });
+const getFaqs = async () => (await apiGetOptional<any[]>('/api/faqs/public', [], { revalidate: 300 })).slice(0, 4);
+const getRedirectLinks = async (type: string) =>
+  (await apiGetOptional<{ links?: any[] }>(`/api/redirect-links?type=${type}&pageSize=10`, {})).links ?? [];
 
 const renderLink = (link: any, className: string) => {
   const content = (
@@ -240,27 +101,33 @@ export default async function Home() {
         {/* ================= SECTION 1: TOP SIDEBAR CONTENT (GRID/BANNER ROW) ================= */}
         <section className="space-y-4">
           {/* Social Channels Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-green-600 text-white p-4 rounded flex items-center justify-between shadow-sm">
-              <div>
-                <h3 className="font-bold text-lg">Join WhatsApp Channel</h3>
-                <p className="text-xs text-green-100">Get instant job alerts on your phone</p>
-              </div>
-              <button className="bg-white text-green-700 hover:bg-green-50 px-4 py-1.5 rounded font-semibold text-sm">
-                Join Now
-              </button>
+          {/* Community channels: only shown when the links are configured (no dead buttons) */}
+          {(SITE.whatsapp || SITE.telegram) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {SITE.whatsapp && (
+                <div className="bg-green-600 text-white p-4 rounded flex items-center justify-between shadow-sm">
+                  <div>
+                    <h3 className="font-bold text-lg">Join WhatsApp Channel</h3>
+                    <p className="text-xs text-green-100">Get instant job alerts on your phone</p>
+                  </div>
+                  <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="bg-white text-green-700 hover:bg-green-50 px-4 py-1.5 rounded font-semibold text-sm">
+                    Join Now
+                  </a>
+                </div>
+              )}
+              {SITE.telegram && (
+                <div className="bg-blue-600 text-white p-4 rounded flex items-center justify-between shadow-sm">
+                  <div>
+                    <h3 className="font-bold text-lg">Join Telegram Group</h3>
+                    <p className="text-xs text-blue-100">Get daily updates and PDF notifications</p>
+                  </div>
+                  <a href={SITE.telegram} target="_blank" rel="noopener noreferrer" className="bg-white text-blue-700 hover:bg-blue-50 px-4 py-1.5 rounded font-semibold text-sm">
+                    Join Now
+                  </a>
+                </div>
+              )}
             </div>
-
-            <div className="bg-blue-600 text-white p-4 rounded flex items-center justify-between shadow-sm">
-              <div>
-                <h3 className="font-bold text-lg">Join Telegram Group</h3>
-                <p className="text-xs text-blue-100">Get daily updates and PDF notifications</p>
-              </div>
-              <button className="bg-white text-blue-700 hover:bg-blue-50 px-4 py-1.5 rounded font-semibold text-sm">
-                Join Now
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Widgets Grid (Popular Jobs, Categories, Tools & FAQs) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -270,7 +137,7 @@ export default async function Home() {
               <div className="space-y-1.5 text-sm">
                 {popularJobs.length > 0 ? (
                   popularJobs.map((job) => (
-                    <Link key={job.id} href={`/jobs/${job.slug}`} className="block text-blue-600 hover:underline truncate">
+                    <Link key={job.slug} href={`/jobs/${job.slug}`} className="block text-blue-600 hover:underline truncate">
                       {job.title}
                     </Link>
                   ))
@@ -303,10 +170,10 @@ export default async function Home() {
                 Free tools and official updates in Hindi for all exam notifications.
               </p>
               <div className="space-y-1 text-xs font-medium">
-                <Link href="/results" className="block text-green-700 hover:underline">✅ Latest Sarkari Results</Link>
-                <Link href="/admit-cards" className="block text-green-700 hover:underline">✅ Download Admit Cards</Link>
-                <Link href="/latest-jobs" className="block text-green-700 hover:underline">✅ Online Application Links</Link>
-                <Link href="/verification" className="block text-green-700 hover:underline">✅ Verification Tools</Link>
+                <Link href="/categories/result" className="block text-green-700 hover:underline">✅ Latest Sarkari Results</Link>
+                <Link href="/categories/admit-card" className="block text-green-700 hover:underline">✅ Download Admit Cards</Link>
+                <Link href="/categories/online-form" className="block text-green-700 hover:underline">✅ Online Application Forms</Link>
+                <Link href="/categories/verification" className="block text-green-700 hover:underline">✅ Document Verification</Link>
               </div>
             </div>
 
@@ -321,7 +188,7 @@ export default async function Home() {
                         <span className="truncate pr-2">{faq.question}</span>
                         <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
                       </summary>
-                      <p className="text-xs text-gray-600 mt-1 pl-1 border-l-2 border-blue-200 whitespace-pre-wrap">{faq.answer}</p>
+                      <p className="text-xs text-gray-600 mt-1 pl-1 border-l-2 border-blue-200 whitespace-pre-wrap">{toPlainText(faq.answer)}</p>
                     </details>
                   ))
                 ) : (
@@ -377,7 +244,12 @@ export default async function Home() {
 
         {/* ================= SECTION 3: DYNAMIC GRID LAYOUT ================= */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
+          {categoryData.length === 0 && (
+            <div className="md:col-span-3 bg-white rounded border p-8 text-center">
+              <p className="text-lg font-semibold text-gray-800">Fresh updates are on the way</p>
+              <p className="mt-1 text-sm text-gray-500">We are adding the latest jobs, results and admit cards. Please check back shortly.</p>
+            </div>
+          )}
           {categoryData.map((category, idx) => {
             const colors = [
               'bg-green-600',
@@ -431,7 +303,7 @@ export default async function Home() {
                 </div>
                 <div className="p-3 bg-gray-50 text-center border-t rounded-b">
                   <Link href={`/categories/${category.slug}`} className="text-blue-600 hover:underline text-xs font-bold uppercase">
-                    View All {category.displayName} →
+                    View All {category.displayName || category.name} →
                   </Link>
                 </div>
               </div>

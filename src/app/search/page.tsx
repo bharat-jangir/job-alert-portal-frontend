@@ -4,6 +4,7 @@ import { Metadata } from 'next';
 import { Search, Building2, MapPin, Clock, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { apiGetList } from '@/lib/api';
 
 const PAGE_SIZE = 15;
 
@@ -61,29 +62,22 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 async function fetchJobs(params: URLSearchParams): Promise<{ jobs: Job[]; total: number }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const res = await fetch(`${baseUrl}/api/jobs?${params}`, { cache: 'no-store' });
-    if (!res.ok) return { jobs: [], total: 0 };
-    const result = await res.json();
-    const payload = result.data ?? result;
-    return {
-      jobs: payload.jobs || (Array.isArray(payload) ? payload : []),
-      total: payload.total || 0,
-    };
-  } catch {
-    return { jobs: [], total: 0 };
-  }
+  // never cached; throws if the API is down so the visitor gets "try again", not a misleading "No jobs available"
+  const payload = await apiGetList<any>(`/api/jobs?${params}`, {}, { revalidate: 0 });
+  return {
+    jobs: payload?.jobs || (Array.isArray(payload) ? payload : []),
+    total: payload?.total || 0,
+  };
 }
 
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
   const resolvedParams = await searchParams;
   const q = (resolvedParams.q || '').trim();
   return {
-    title: q ? `Search: "${q}" – Government Jobs` : 'Browse All Government Jobs 2025',
+    title: q ? `Search: "${q}" – Government Jobs` : `Browse All Government Jobs ${new Date().getFullYear()}`,
     description: q
       ? `Search results for "${q}" – government jobs, results, admit cards and more.`
-      : 'Browse all latest Sarkari Naukri, results, admit cards and answer keys 2025.',
+      : `Browse all latest Sarkari Naukri, results, admit cards and answer keys ${new Date().getFullYear()}.`,
     robots: { index: false, follow: true },
   };
 }
@@ -341,7 +335,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 <div className="mt-8 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">🔎 Related Searches</h3>
                   <div className="flex flex-wrap gap-2">
-                    {[`${q} result`, `${q} admit card`, `${q} answer key`, `${q} syllabus`, `${q} 2025`].map((s) => (
+                    {[`${q} result`, `${q} admit card`, `${q} answer key`, `${q} syllabus`, `${q} ${new Date().getFullYear()}`].map((s) => (
                       <Link key={s} href={`/search?q=${encodeURIComponent(s)}`}
                         className="text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-full transition">
                         {s}

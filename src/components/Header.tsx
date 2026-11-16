@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SITE } from '@/lib/site';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -11,9 +12,10 @@ export default function Header() {
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/latest-jobs', label: 'Latest Jobs' },
-    { href: '/jobs/admit-cards', label: 'Admit Cards' },
-    { href: '/jobs/results', label: 'Results' },
-    { href: '/jobs/answer-keys', label: 'Answer Keys' },
+    { href: '/categories/online-form', label: 'Online Forms' },
+    { href: '/categories/admit-card', label: 'Admit Cards' },
+    { href: '/categories/result', label: 'Results' },
+    { href: '/categories/answer-key', label: 'Answer Keys' },
     { href: '/about-us', label: 'About Us' },
   ];
 
@@ -39,7 +41,7 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center py-4">
             <div className="flex items-center justify-between w-full md:w-auto mb-4 md:mb-0">
-              <Link href="/" className="text-2xl font-bold text-blue-600">Job Alert</Link>
+              <Link href="/" className="text-2xl font-bold text-blue-600">{SITE.name}</Link>
               {/* Mobile Menu Button */}
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

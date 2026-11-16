@@ -1,5 +1,5 @@
-const API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+import { apiGet } from '@/lib/api';
+import { SITE, SITE_URL } from '@/lib/site';
 
 export const revalidate = 600;
 
@@ -8,18 +8,12 @@ const esc = (s: string) =>
 
 /** RSS 2.0 feed of the 50 newest published posts (aggregators, Google News/Discover, readers). */
 export async function GET() {
-  let posts: any[] = [];
-  try {
-    const res = await fetch(`${API}/api/jobs/latest?limit=50`, { next: { revalidate: 600, tags: ['posts'] } });
-    if (res.ok) {
-      const j = await res.json();
-      const d = j.data ?? j;
-      posts = Array.isArray(d) ? d : d.jobs ?? [];
-    }
-  } catch {}
+  // throws if the API is down: a 5xx is retried by readers, whereas an empty feed would look like "no posts"
+  const d = await apiGet<any>('/api/jobs/latest?limit=50', { revalidate: 600, tags: ['posts'] });
+  const posts: any[] = Array.isArray(d) ? d : d?.jobs ?? [];
 
   const items = posts.map((p) => {
-    const url = `${SITE}/jobs/${p.slug}`;
+    const url = `${SITE_URL}/jobs/${p.slug}`;
     const date = new Date(p.publishedAt || p.updatedAt || Date.now()).toUTCString();
     return `<item><title>${esc(p.title)}</title><link>${esc(url)}</link><guid isPermaLink="true">${esc(url)}</guid><pubDate>${date}</pubDate>${
       p.type ? `<category>${esc(p.type)}</category>` : ''}${p.description ? `<description>${esc(p.description)}</description>` : ''}</item>`;
@@ -27,11 +21,11 @@ export async function GET() {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
-<title>Job Alert – Latest Sarkari Naukri, Results &amp; Admit Cards</title>
-<link>${SITE}</link>
+<title>${esc(SITE.name)} – Latest Sarkari Naukri, Results &amp; Admit Cards</title>
+<link>${SITE_URL}</link>
 <description>Latest government jobs, results, admit cards and answer keys.</description>
 <language>en-IN</language>
-<atom:link href="${SITE}/feed.xml" rel="self" type="application/rss+xml"/>
+<atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
 <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${items.join('\n')}
 </channel></rss>`;
