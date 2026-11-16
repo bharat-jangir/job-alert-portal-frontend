@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { FaqAccordion } from '@/components/FaqAccordion';
 import Link from 'next/link';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 import { HelpCircle, ChevronRight } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ async function getFaqs(): Promise<Faq[]> {
     if (!res.ok) return [];
     const result = await res.json();
     const payload = result.data ?? result;
-    return Array.isArray(payload) ? payload : [];
+    return Array.isArray(payload) ? payload.map((f: Faq) => ({ ...f, answer: sanitizeRichHtml(f.answer) })) : [];
   } catch {
     return [];
   }

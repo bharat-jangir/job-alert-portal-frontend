@@ -72,22 +72,37 @@ const btnCls = {
   outline: 'border-2 border-blue-600 text-blue-700 hover:bg-blue-50',
 };
 
-/** Parse a CSS string into a safe React style object */
+/** Cosmetic properties only (mirror of ALLOWED_CSS_PROPS in the backend block-styles.ts). */
+const ALLOWED_CSS = new Set([
+  'color', 'background-color', 'border', 'border-color', 'border-width', 'border-style', 'border-radius',
+  'border-top', 'border-bottom', 'border-left', 'border-right',
+  'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
+  'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+  'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing',
+  'text-align', 'text-decoration', 'text-transform', 'box-shadow', 'max-width',
+]);
+const BAD_CSS_VALUE = /url\s*\(|@|\\|expression|javascript|<|\/\*|!important|var\s*\(|attr\s*\(|image-set/i;
+const FORBIDDEN_CLASS = /(^|:)(fixed|absolute|sticky|inset|top-|bottom-|left-|right-|z-|hidden|invisible|collapse|sr-only|opacity-0|pointer-events|-translate|translate|overflow-hidden|h-0|w-0|max-h-0|max-w-0|text-transparent|float-|content-)/i;
+
+/** Parse a CSS string into a safe React style object (allowlisted properties only; defence in depth). */
 export function parseCustomCss(cssString?: string): React.CSSProperties {
   if (!cssString || typeof cssString !== 'string') return {};
   const styleObj: Record<string, string> = {};
-  const declarations = cssString.split(';').map((d) => d.trim()).filter(Boolean);
-  for (const decl of declarations) {
+  for (const decl of cssString.split(';').map((d) => d.trim()).filter(Boolean)) {
     const colonIdx = decl.indexOf(':');
-    if (colonIdx === -1) continue;
+    if (colonIdx < 1) continue;
     const rawProp = decl.slice(0, colonIdx).trim().toLowerCase();
     const rawVal = decl.slice(colonIdx + 1).trim();
-    if (!rawProp || !rawVal) continue;
-    if (rawVal.toLowerCase().includes('javascript:') || rawVal.toLowerCase().includes('expression(')) continue;
-    const camelProp = rawProp.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
-    styleObj[camelProp] = rawVal;
+    if (!ALLOWED_CSS.has(rawProp) || !rawVal || rawVal.length > 120 || BAD_CSS_VALUE.test(rawVal)) continue;
+    styleObj[rawProp.replace(/-([a-z])/g, (_, ch) => ch.toUpperCase())] = rawVal;
   }
   return styleObj as React.CSSProperties;
+}
+
+/** Drops class tokens that could reposition/hide content or use arbitrary values. */
+function safeClassName(c?: string): string | undefined {
+  const tokens = (c ?? '').split(/\s+/).filter((t) => t && /^[a-z0-9:_/.\-%#]+$/i.test(t) && !FORBIDDEN_CLASS.test(t));
+  return tokens.length ? tokens.join(' ') : undefined;
 }
 
 /** Resolves BlockStyles into inline style object and className */
@@ -114,7 +129,7 @@ export function getBlockStyles(styles?: BlockStyles): { style: React.CSSProperti
   const customObj = parseCustomCss(styles.customCss);
   return {
     style: { ...styleObj, ...customObj },
-    className: styles.className?.trim() || undefined,
+    className: safeClassName(styles.className),
   };
 }
 
