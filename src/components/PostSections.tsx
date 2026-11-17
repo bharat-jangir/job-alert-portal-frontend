@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import JobContent from '@/app/jobs/[slug]/JobContent';
+import JobContent from '@/app/[locale]/jobs/[slug]/JobContent';
+import { getT, type TFunction } from '@/i18n/dictionary';
+import { DEFAULT_LOCALE, type Locale } from '@/i18n/config';
 import { Inline, inlineToPlain } from '@/lib/inline';
 import { cn } from '@/lib/utils';
 
@@ -194,7 +196,7 @@ function Frame({ src, title, ratio, height }: { src: string; title: string; rati
   );
 }
 
-function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: Section[]; ids: Map<number, string>; index: number }): ReactNode {
+function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: Section[]; ids: Map<number, string>; index: number; t: TFunction }): ReactNode {
   switch (s.type) {
     case 'paragraph': {
       const { style, className } = getBlockStyles(s.styles);
@@ -419,7 +421,7 @@ function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: S
       );
     case 'faq':
       return (
-        <Block key={key} title={s.title || 'Frequently asked questions'} styles={s.styles}>
+        <Block key={key} title={s.title || ctx.t('blocks.faq')} styles={s.styles}>
           <div className="divide-y border rounded-lg">
             {s.items.map((f, k) => (
               <details key={k} className="p-4 group">
@@ -437,8 +439,8 @@ function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: S
         .filter((x): x is { id: string; text: string; level: 2 | 3 | 4 } => !!x);
       if (items.length < 2) return null;
       return (
-        <nav key={key} style={style} aria-label="Table of contents" className={cn('mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4', className)}>
-          <p className="mb-2 font-bold text-gray-900">{s.title || 'Table of contents'}</p>
+        <nav key={key} style={style} aria-label={ctx.t('blocks.toc')} className={cn('mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4', className)}>
+          <p className="mb-2 font-bold text-gray-900">{s.title || ctx.t('blocks.toc')}</p>
           <ol className="space-y-1 text-sm">
             {items.map((it) => (
               <li key={it.id} className={it.level === 3 ? 'ml-4' : ''}>
@@ -453,7 +455,7 @@ function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: S
       const { style, className } = getBlockStyles(s.styles);
       // Reserved box (prevents layout shift). Plug your ad network script into [data-ad-slot].
       return (
-        <aside key={key} style={style} data-ad-slot={s.slot} aria-label="Advertisement"
+        <aside key={key} style={style} data-ad-slot={s.slot} aria-label={ctx.t('blocks.advertisement')}
           className={cn('my-6 flex min-h-[250px] items-center justify-center text-xs text-gray-400', className)}>
           {process.env.NODE_ENV !== 'production' ? `Ad slot: ${s.slot}` : null}
         </aside>
@@ -482,11 +484,12 @@ function renderBlock(s: Section | Leaf, key: string | number, ctx: { sections: S
   }
 }
 
-export default function PostSections({ sections }: { sections: Section[] }) {
+export default function PostSections({ sections, locale = DEFAULT_LOCALE }: { sections: Section[]; locale?: Locale }) {
   const ids = headingIds(sections);
+  const t = getT(locale);
   return (
     <div className="space-y-2">
-      {sections.map((s, i) => renderBlock(s, i, { sections, ids, index: i }))}
+      {sections.map((s, i) => renderBlock(s, i, { sections, ids, index: i, t }))}
     </div>
   );
 }

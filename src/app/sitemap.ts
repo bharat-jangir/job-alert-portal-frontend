@@ -1,8 +1,21 @@
 // frontend/src/app/sitemap.ts
 import { MetadataRoute } from 'next';
 import { apiGet, SITE_URL as BASE_URL } from '@/lib/api';
+import { LOCALE_META, localePath } from '@/i18n/config';
 
-interface Slug { slug: string; updatedAt?: string }
+interface Slug { slug: string; updatedAt?: string; languages?: string[] }
+
+const url = (lang: 'en' | 'hi', path: string) => `${BASE_URL}${localePath(lang, path) === '/' ? '' : localePath(lang, path)}` || BASE_URL;
+
+/** One entry per language with hreflang alternates, for pages that exist in both languages. */
+function bilingual(path: string, base: Omit<MetadataRoute.Sitemap[number], 'url' | 'alternates'>, langs: ('en' | 'hi')[] = ['en', 'hi']): MetadataRoute.Sitemap {
+  const languages: Record<string, string> = {};
+  if (langs.length > 1) {
+    for (const l of langs) languages[LOCALE_META[l].hreflang] = url(l, path);
+    languages['x-default'] = url('en', path);
+  }
+  return langs.map((l) => ({ url: url(l, path), ...base, ...(langs.length > 1 ? { alternates: { languages } } : {}) }));
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // These THROW when the API is down: Google then gets an error (and retries) or the last good sitemap,
@@ -25,11 +38,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const now = new Date();
+  const hourly = { lastModified: now, changeFrequency: 'hourly' as const };
+  // pages that exist in English only: their /hi/ twin is noindex, so it is not listed
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE_URL}/`, lastModified: now, changeFrequency: 'hourly', priority: 1 },
-    { url: `${BASE_URL}/latest-jobs`, lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
-    { url: `${BASE_URL}/jobs`, lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
-    { url: `${BASE_URL}/categories`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
+    ...bilingual('/', { ...hourly, priority: 1 }),
+    ...bilingual('/latest-jobs', { ...hourly, priority: 0.9 }),
+    ...bilingual('/jobs', { ...hourly, priority: 0.9 }),
+    ...bilingual('/categories', { lastModified: now, changeFrequency: 'weekly', priority: 0.6 }),
     { url: `${BASE_URL}/about-us`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${BASE_URL}/faq`, lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
@@ -41,14 +56,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const categoryRoutes: MetadataRoute.Sitemap = counted
     .filter((s): s is string => !!s)
-    .map((slug) => ({ url: `${BASE_URL}/categories/${slug}`, lastModified: now, changeFrequency: 'hourly' as const, priority: 0.8 }));
+    .flatMap((slug) => bilingual(`/categories/${slug}`, { ...hourly, priority: 0.8 }));
 
-  const postRoutes: MetadataRoute.Sitemap = (Array.isArray(posts) ? posts : []).map((p) => ({
-    url: `${BASE_URL}/jobs/${p.slug}`,
-    lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }));
+  // a post is listed in Hindi only when it really has a Hindi version
+  const postRoutes: MetadataRoute.Sitemap = (Array.isArray(posts) ? posts : []).flatMap((p) =>
+    bilingual(
+      `/jobs/${p.slug}`,
+      { lastModified: p.updatedAt ? new Date(p.updatedAt) : now, changeFrequency: 'weekly', priority: 0.7 },
+      p.languages?.includes('hi') ? ['en', 'hi'] : ['en'],
+    ),
+  );
 
   return [...staticRoutes, ...categoryRoutes, ...postRoutes];
 }

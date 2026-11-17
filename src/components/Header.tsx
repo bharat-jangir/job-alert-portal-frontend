@@ -1,22 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Link from '@/i18n/link';
 import { SITE } from '@/lib/site';
+import { basePath, formatDate, localePath } from '@/i18n/config';
+import { useLocale, useT } from '@/i18n/provider';
+import LanguageSwitcher from './LanguageSwitcher';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const pathname = usePathname();
+  const t = useT();
+  const locale = useLocale();
+  // the visitor's path without the language prefix, so "active" matching works in every language
+  const pathname = basePath(usePathname() || '/');
 
   const navItems = [
-    { href: '/', label: 'Home' },
-    { href: '/latest-jobs', label: 'Latest Jobs' },
-    { href: '/categories/online-form', label: 'Online Forms' },
-    { href: '/categories/admit-card', label: 'Admit Cards' },
-    { href: '/categories/result', label: 'Results' },
-    { href: '/categories/answer-key', label: 'Answer Keys' },
-    { href: '/about-us', label: 'About Us' },
+    { href: '/', label: t('nav.home') },
+    { href: '/latest-jobs', label: t('nav.latestJobs') },
+    { href: '/categories/online-form', label: t('nav.onlineForms') },
+    { href: '/categories/admit-card', label: t('nav.admitCards') },
+    { href: '/categories/result', label: t('nav.results') },
+    { href: '/categories/answer-key', label: t('nav.answerKeys') },
+    { href: '/about-us', label: t('nav.aboutUs') },
   ];
 
   return (
@@ -26,11 +32,14 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-center">
             <div className="text-sm">
-              <span>Last Updated: <span id="lastUpdated">14 February 2024</span></span>
+              <span>{t('header.lastUpdated', { date: formatDate(new Date(), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}</span>
             </div>
-            <div className="hidden md:flex space-x-4 text-sm">
-              <Link href="/sitemap.xml" className="hover:text-blue-200">Sitemap</Link>
-              <Link href="/contact" className="hover:text-blue-200">Contact Us</Link>
+            <div className="flex items-center space-x-4 text-sm">
+              <div className="hidden md:flex space-x-4">
+                <a href="/sitemap.xml" className="hover:text-blue-200">{t('nav.sitemap')}</a>
+                <Link href="/contact" className="hover:text-blue-200">{t('nav.contact')}</Link>
+              </div>
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
@@ -44,6 +53,7 @@ export default function Header() {
               <Link href="/" className="text-2xl font-bold text-blue-600">{SITE.name}</Link>
               {/* Mobile Menu Button */}
               <button 
+                aria-label={t('nav.menu')}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden text-gray-600 hover:text-blue-600 focus:outline-none"
               >
@@ -59,18 +69,18 @@ export default function Header() {
 
             {/* Search Bar */}
             <div className="w-full md:w-1/3 mb-4 md:mb-0">
-              <form action="/search" method="GET" className="flex">
+              <form action={localePath(locale, '/search')} method="GET" className="flex">
                 <input 
                   type="text" 
                   name="q" 
-                  placeholder="Search jobs..." 
+                  placeholder={t('header.searchPlaceholder')} 
                   className="w-full px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button 
                   type="submit" 
                   className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700"
                 >
-                  Search
+                  {t('header.searchButton')}
                 </button>
               </form>
             </div>
@@ -110,8 +120,8 @@ export default function Header() {
                   {item.label}
                 </Link>
               ))}
-              <Link href="/sitemap.xml" className="text-gray-600 hover:text-blue-600 py-2">Sitemap</Link>
-              <Link href="/contact" className="text-gray-600 hover:text-blue-600 py-2">Contact Us</Link>
+              <a href="/sitemap.xml" className="text-gray-600 hover:text-blue-600 py-2">{t('nav.sitemap')}</a>
+              <Link href="/contact" className="text-gray-600 hover:text-blue-600 py-2">{t('nav.contact')}</Link>
             </nav>
           </div>
         </div>

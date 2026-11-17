@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import Link from '@/i18n/link';
+import EnglishOnlyNotice from '@/i18n/english-only';
 import { SITE } from '@/lib/api';
 
 /** Shared layout for the legal pages (header/footer come from the (main) layout). */
 export default function LegalPage({ title, updated, intro, children }: { title: string; updated: string; intro?: string; children: ReactNode }) {
   return (
     <div className="bg-gray-100 min-h-[60vh] py-8">
+      <EnglishOnlyNotice />
       <article className="mx-auto max-w-3xl rounded-lg border border-gray-200 bg-white px-6 py-8 shadow-sm md:px-10">
         <nav className="mb-3 text-xs text-gray-500">
           <Link href="/" className="hover:underline">Home</Link> › <span>{title}</span>

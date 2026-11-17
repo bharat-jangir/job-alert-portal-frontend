@@ -14,6 +14,12 @@ export { SITE, SITE_URL };
 
 const INTERNAL_KEY = process.env.API_INTERNAL_KEY || '';
 
+/** Adds `lang=hi` to an API path for the Hindi site (English is the API default, so nothing is added). */
+export function withLang(path: string, locale: string): string {
+  if (locale === 'en') return path;
+  return `${path}${path.includes('?') ? '&' : '?'}lang=${locale}`;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -26,6 +32,9 @@ interface GetOptions {
   timeoutMs?: number; // per attempt (default 15s: covers a cold start)
   retries?: number; // extra attempts after the first (default 2)
 }
+
+/** 4xx answers that are NOT a verdict on the request: the server was busy, so try again and never read it as "empty". */
+const isTransient = (status: number) => status === 429 || status === 408;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const unwrap = (j: any) => (j && typeof j === 'object' && 'data' in j && 'meta' in j ? j.data : j?.data ?? j);
@@ -45,11 +54,11 @@ export async function apiGet<T = any>(path: string, opts: GetOptions = {}): Prom
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok) return unwrap(await res.json()) as T;
-      // 4xx is a definite answer (e.g. 404): retrying will not change it
-      if (res.status < 500) throw new ApiError(res.status, `${path} -> ${res.status}`);
+      // 4xx is a definite answer (e.g. 404): retrying will not change it. 429/408 are not: retry them.
+      if (res.status < 500 && !isTransient(res.status)) throw new ApiError(res.status, `${path} -> ${res.status}`);
       last = new ApiError(res.status, `${path} -> ${res.status}`);
     } catch (e) {
-      if (e instanceof ApiError && e.status < 500) throw e;
+      if (e instanceof ApiError && e.status < 500 && !isTransient(e.status)) throw e;
       last = e;
     }
     if (attempt < retries) await wait(700 * (attempt + 1));
@@ -78,7 +87,8 @@ export async function apiGetList<T>(path: string, empty: T, opts: GetOptions = {
   try {
     return await apiGet<T>(path, opts);
   } catch (e) {
-    if (e instanceof ApiError && e.status < 500) return empty;
+    // a rate limit (429) is not "no results": let it fail so the visitor gets the error page, not a fake 404
+    if (e instanceof ApiError && e.status < 500 && !isTransient(e.status)) return empty;
     throw e;
   }
 }
