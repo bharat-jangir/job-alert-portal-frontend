@@ -50,9 +50,9 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center py-4">
             <div className="flex items-center justify-between w-full md:w-auto mb-4 md:mb-0">
-              <Link href="/" className="text-2xl font-bold text-blue-600">{SITE.name}</Link>
+              <Link href="/" className="text-2xl font-bold text-blue-600 px-4">{SITE.name}</Link>
               {/* Mobile Menu Button */}
-              <button 
+              <button
                 aria-label={t('nav.menu')}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden text-gray-600 hover:text-blue-600 focus:outline-none"
@@ -70,14 +70,14 @@ export default function Header() {
             {/* Search Bar */}
             <div className="w-full md:w-1/3 mb-4 md:mb-0">
               <form action={localePath(locale, '/search')} method="GET" className="flex">
-                <input 
-                  type="text" 
-                  name="q" 
-                  placeholder={t('header.searchPlaceholder')} 
+                <input
+                  type="text"
+                  name="q"
+                  placeholder={t('header.searchPlaceholder')}
                   className="w-full px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700"
                 >
                   {t('header.searchButton')}
@@ -86,16 +86,15 @@ export default function Header() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-6 bg-white">
+            <nav className="hidden md:flex space-x-6 bg-white px-1">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    (item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(item.href + '/'))
-                      ? 'bg-blue-100 text-blue-700 font-semibold'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${(item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(item.href + '/'))
+                    ? 'bg-blue-100 text-blue-700 font-semibold'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
+                    }`}
                 >
                   {item.label}
                 </Link>
@@ -111,11 +110,10 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    (item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(item.href + '/'))
-                      ? 'bg-blue-100 text-blue-700 font-semibold'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
-                  }`}
+                  className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${(item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(item.href + '/'))
+                    ? 'bg-blue-100 text-blue-700 font-semibold'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
+                    }`}
                 >
                   {item.label}
                 </Link>
