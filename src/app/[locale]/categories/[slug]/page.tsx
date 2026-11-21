@@ -80,7 +80,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     ? await apiGetOptional<PostRowData[]>(withLang('/api/jobs/latest?limit=8', locale), [])
     : [];
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const siteUrl = SITE_URL;
   const prefix = locale === 'en' ? '' : `/${locale}`;
   const itemList = jobs.length > 0 && {
     '@context': 'https://schema.org',

@@ -8,7 +8,11 @@
  *   - on a first render the visitor gets the error page, which is not cached.
  * Slow starts are absorbed by a generous timeout plus retries.
  */
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+export const API_URL = (
+  process.env.BACKEND_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:5000'
+).replace(/\/$/, '');
 import { SITE, SITE_URL } from './site';
 export { SITE, SITE_URL };
 

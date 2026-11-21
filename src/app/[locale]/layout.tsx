@@ -32,8 +32,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     openGraph: { type: 'website', locale: LOCALE_META[locale].ogLocale, siteName: SITE.name, url: SITE_URL },
     twitter: { card: 'summary_large_image' },
     robots: { index: true, follow: true },
-    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-      ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+    ...((process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION)
+      ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
       : {}),
   };
 }
