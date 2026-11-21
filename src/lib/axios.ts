@@ -3,7 +3,9 @@ import axios from 'axios';
 const backendUrl =
   process.env.BACKEND_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:5000';
+  (process.env.NODE_ENV === 'production' || process.env.VERCEL
+    ? 'https://job-alert-portal-backend-wwc6.onrender.com'
+    : 'http://localhost:5000');
 
 const api = axios.create({
   baseURL: `${backendUrl.replace(/\/$/, '')}/api`,
