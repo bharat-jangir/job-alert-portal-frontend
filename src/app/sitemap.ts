@@ -18,12 +18,20 @@ function bilingual(path: string, base: Omit<MetadataRoute.Sitemap[number], 'url'
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // These THROW when the API is down: Google then gets an error (and retries) or the last good sitemap,
-  // never an empty one that would look like "every page was removed".
-  const [posts, categories] = await Promise.all([
-    apiGet<Slug[]>('/api/jobs/sitemap', { revalidate: 600, tags: ['sitemap'] }),
-    apiGet<{ slug: string }[]>('/api/job-categories/active', { revalidate: 600, tags: ['sitemap', 'categories'] }),
-  ]);
+  let posts: Slug[] = [];
+  let categories: { slug: string }[] = [];
+
+  try {
+    const [fetchedPosts, fetchedCategories] = await Promise.all([
+      apiGet<Slug[]>('/api/jobs/sitemap', { revalidate: 600, tags: ['sitemap'] }),
+      apiGet<{ slug: string }[]>('/api/job-categories/active', { revalidate: 600, tags: ['sitemap', 'categories'] }),
+    ]);
+    posts = Array.isArray(fetchedPosts) ? fetchedPosts : [];
+    categories = Array.isArray(fetchedCategories) ? fetchedCategories : [];
+  } catch (err) {
+    // Graceful fallback during offline builds when backend isn't running
+    console.warn('Sitemap dynamic data fetch skipped during static prerender:', err);
+  }
 
   // only categories that have posts: empty ones are noindex, so listing them would contradict the page
   const counted = await Promise.all(

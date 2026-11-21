@@ -7,7 +7,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3
 
 /** Public contact / community links, configured per deployment. Empty values hide the matching UI. */
 export const SITE = {
-  name: process.env.NEXT_PUBLIC_SITE_NAME || 'RojgarResult',
+  name: process.env.NEXT_PUBLIC_SITE_NAME || 'Sarkari Job Update',
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || '',
   telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || '',
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || '',
